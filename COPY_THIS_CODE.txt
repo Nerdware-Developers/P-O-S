@@ -1,0 +1,9 @@
+THIS IS THE CORRECT CODE - COPY THIS ENTIRE FILE TO GOOGLE APPS SCRIPT
+
+Open GoogleAppsScript/Code.gs in your project and copy ALL of it to Google Apps Script.
+
+Make sure line 104 says: const apiKey = request.parameter.apiKey;
+It should NOT say: const apiKey = request.headers['X-API-Key']
+
+After pasting, save and create a NEW deployment.
+

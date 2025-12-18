@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verify Google Apps Script Deployment</title>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 800px; }
+        .step { margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 5px; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
+        button { padding: 10px 20px; font-size: 16px; margin: 10px 5px; cursor: pointer; }
+        input { width: 100%; padding: 8px; margin: 5px 0; }
+        pre { background: #fff; padding: 10px; border: 1px solid #ddd; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Verify Google Apps Script Deployment</h1>
+    
+    <div class="step">
+        <h2>Step 1: Test Direct URL Access</h2>
+        <p>First, let's verify the deployment URL works at all:</p>
+        <input type="text" id="apiUrl" placeholder="Paste your deployment URL here" 
+               value="https://script.google.com/macros/s/AKfycbw6edHFXKY9WCCugbsYXrKRFyko6c6coEcH5-krwEE4QUZaC93GvRi4CRl9aMbj801V/exec"
+               style="width: 100%;">
+        <input type="text" id="apiKey" placeholder="Paste your API key here"
+               value="1d5fa25f7a937aa1d8c42f9f0779654ded5ddff1a446d99691b1ce0bc7fe0db6"
+               style="width: 100%;">
+        <br><br>
+        <button onclick="testDirect()">Test Direct URL (No CORS)</button>
+        <button onclick="testWithFetch()">Test With Fetch (CORS)</button>
+        <div id="directResult"></div>
+    </div>
+    
+    <div class="step">
+        <h2>Step 2: Check Deployment Settings</h2>
+        <ol>
+            <li>Go to <a href="https://script.google.com" target="_blank">https://script.google.com</a></li>
+            <li>Open your POS System project</li>
+            <li>Click <strong>Deploy</strong> → <strong>Manage deployments</strong></li>
+            <li>Click the pencil icon (✏️) to edit</li>
+            <li>Verify:
+                <ul>
+                    <li><strong>Execute as:</strong> Me</li>
+                    <li><strong>Who has access:</strong> <span class="success">Anyone</span> (must be exactly this!)</li>
+                </ul>
+            </li>
+            <li>If it's NOT "Anyone", change it and click <strong>Deploy</strong></li>
+            <li><strong>Copy the NEW URL</strong> if it changed</li>
+        </ol>
+    </div>
+    
+    <div class="step">
+        <h2>Step 3: Results</h2>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        async function testDirect() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const resultEl = document.getElementById('directResult');
+            
+            if (!apiUrl || !apiKey) {
+                resultEl.innerHTML = '<p class="error">Please enter both URL and API key</p>';
+                return;
+            }
+            
+            const testUrl = `${apiUrl}?endpoint=products&apiKey=${encodeURIComponent(apiKey)}`;
+            resultEl.innerHTML = `<p>Testing: <a href="${testUrl}" target="_blank">${testUrl}</a></p>
+                <p><strong>Click the link above to open in a new tab.</strong></p>
+                <p>If you see JSON like <code>{"success":true,"products":[...]}</code>, the API is working!</p>
+                <p>If you see an error, check the Google Apps Script execution logs.</p>`;
+        }
+        
+        async function testWithFetch() {
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const resultEl = document.getElementById('directResult');
+            
+            if (!apiUrl || !apiKey) {
+                resultEl.innerHTML = '<p class="error">Please enter both URL and API key</p>';
+                return;
+            }
+            
+            resultEl.innerHTML = '<p>Testing with fetch (this will show CORS issues)...</p>';
+            
+            try {
+                const url = `${apiUrl}?endpoint=products&apiKey=${encodeURIComponent(apiKey)}`;
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
+                
+                const text = await response.text();
+                
+                try {
+                    const json = JSON.parse(text);
+                    resultEl.innerHTML = `<p class="success">✅ SUCCESS! CORS is working!</p>
+                        <pre>${JSON.stringify(json, null, 2)}</pre>`;
+                } catch (e) {
+                    resultEl.innerHTML = `<p class="warning">⚠️ Got response but not JSON:</p>
+                        <pre>${text}</pre>`;
+                }
+            } catch (error) {
+                if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+                    resultEl.innerHTML = `<p class="error">❌ CORS ERROR: ${error.message}</p>
+                        <p><strong>This means:</strong></p>
+                        <ul>
+                            <li>The deployment might not have "Who has access: Anyone"</li>
+                            <li>You might need to create a NEW deployment</li>
+                            <li>Try the "Test Direct URL" button first to verify the API works</li>
+                        </ul>
+                        <p><strong>Next steps:</strong></p>
+                        <ol>
+                            <li>Verify deployment settings (see Step 2 above)</li>
+                            <li>Create a NEW deployment if needed</li>
+                            <li>Update the URL in this page</li>
+                            <li>Try again</li>
+                        </ol>`;
+                } else {
+                    resultEl.innerHTML = `<p class="error">❌ Error: ${error.message}</p>`;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+

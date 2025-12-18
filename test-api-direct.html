@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Direct API Test</title>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 1200px; }
+        button { padding: 10px 20px; font-size: 16px; margin: 10px 5px; cursor: pointer; }
+        pre { background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; white-space: pre-wrap; }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+        input { width: 100%; padding: 8px; margin: 5px 0; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Direct API Test - Debug "Failed to fetch"</h1>
+    
+    <div>
+        <label>Web App URL:</label>
+        <input type="text" id="apiUrl" 
+               value="https://script.google.com/macros/s/AKfycbw6edHFXKY9WCCugbsYXrKRFyko6c6coEcH5-krwEE4QUZaC93GvRi4CRl9aMbj801V/exec">
+        
+        <label>API Key:</label>
+        <input type="text" id="apiKey" 
+               value="1d5fa25f7a937aa1d8c42f9f0779654ded5ddff1a446d99691b1ce0bc7fe0db6">
+        
+        <button onclick="testGet()">Test GET Products</button>
+        <button onclick="testPost()">Test POST Create Product</button>
+        <button onclick="testPostExact()">Test POST (Exact Format from App)</button>
+    </div>
+    
+    <h2>Response:</h2>
+    <pre id="result">Click a button to test...</pre>
+
+    <script>
+        async function testGet() {
+            const resultEl = document.getElementById('result');
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            
+            resultEl.textContent = 'Testing GET request...';
+            resultEl.className = '';
+            
+            try {
+                const url = `${apiUrl}?endpoint=products&apiKey=${encodeURIComponent(apiKey)}`;
+                console.log('GET URL:', url);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
+                
+                const text = await response.text();
+                console.log('Response status:', response.status);
+                console.log('Response text:', text);
+                
+                try {
+                    const json = JSON.parse(text);
+                    resultEl.textContent = `Status: ${response.status}\n\nResponse:\n${JSON.stringify(json, null, 2)}`;
+                    resultEl.className = json.success ? 'success' : 'error';
+                } catch (e) {
+                    resultEl.textContent = `Status: ${response.status}\n\nResponse (not JSON):\n${text}`;
+                    resultEl.className = 'error';
+                }
+            } catch (error) {
+                resultEl.textContent = `❌ Error: ${error.message}\n\nType: ${error.name}\n\nStack: ${error.stack}`;
+                resultEl.className = 'error';
+                console.error('Fetch error:', error);
+            }
+        }
+        
+        async function testPost() {
+            const resultEl = document.getElementById('result');
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            
+            resultEl.textContent = 'Testing POST request...';
+            resultEl.className = '';
+            
+            try {
+                const url = `${apiUrl}?endpoint=products&apiKey=${encodeURIComponent(apiKey)}`;
+                const testProduct = {
+                    name: 'Test Product',
+                    sku: 'TEST001',
+                    price: 10.99,
+                    stock: 5,
+                    category: 'Test',
+                    description: 'Test product'
+                };
+                
+                console.log('POST URL:', url);
+                console.log('POST Data:', testProduct);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testProduct),
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
+                
+                const text = await response.text();
+                console.log('Response status:', response.status);
+                console.log('Response text:', text);
+                
+                try {
+                    const json = JSON.parse(text);
+                    resultEl.textContent = `Status: ${response.status}\n\nResponse:\n${JSON.stringify(json, null, 2)}`;
+                    resultEl.className = json.success ? 'success' : 'error';
+                } catch (e) {
+                    resultEl.textContent = `Status: ${response.status}\n\nResponse (not JSON):\n${text}`;
+                    resultEl.className = 'error';
+                }
+            } catch (error) {
+                resultEl.textContent = `❌ Error: ${error.message}\n\nType: ${error.name}\n\nStack: ${error.stack}`;
+                resultEl.className = 'error';
+                console.error('Fetch error:', error);
+            }
+        }
+        
+        async function testPostExact() {
+            const resultEl = document.getElementById('result');
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            
+            resultEl.textContent = 'Testing POST request (exact format from app)...';
+            resultEl.className = '';
+            
+            try {
+                // This matches exactly what the app sends
+                const params = new URLSearchParams({
+                    endpoint: 'products',
+                    apiKey: apiKey
+                });
+                const url = `${apiUrl}?${params.toString()}`;
+                
+                const testProduct = {
+                    name: 'Test Product Exact',
+                    sku: 'TEST002',
+                    price: 15.99,
+                    stock: 10,
+                    category: 'Test',
+                    description: 'Test product exact format'
+                };
+                
+                const bodyData = {
+                    ...testProduct,
+                    _endpoint: 'products',
+                    _apiKey: apiKey
+                };
+                
+                console.log('POST URL:', url);
+                console.log('POST Body Data:', bodyData);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(bodyData),
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
+                
+                const text = await response.text();
+                console.log('Response status:', response.status);
+                console.log('Response text:', text);
+                
+                try {
+                    const json = JSON.parse(text);
+                    resultEl.textContent = `Status: ${response.status}\n\nResponse:\n${JSON.stringify(json, null, 2)}`;
+                    resultEl.className = json.success ? 'success' : 'error';
+                } catch (e) {
+                    resultEl.textContent = `Status: ${response.status}\n\nResponse (not JSON):\n${text}`;
+                    resultEl.className = 'error';
+                }
+            } catch (error) {
+                resultEl.textContent = `❌ Error: ${error.message}\n\nType: ${error.name}\n\nThis is likely a CORS or network issue.\n\nCheck:\n1. Google Apps Script deployment has "Who has access: Anyone"\n2. The URL is correct\n3. The API key matches Code.gs\n\nStack: ${error.stack}`;
+                resultEl.className = 'error';
+                console.error('Fetch error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
+

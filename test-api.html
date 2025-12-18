@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test POS API</title>
+</head>
+<body>
+    <h1>POS API Test</h1>
+    <button onclick="testAPI()">Test Products API</button>
+    <pre id="result"></pre>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbxpB7GuUsmByCn43S1C0tjyrTQDRC7jGJA1uE4bRH8ymR8BhrIbxgh0-MYUsEGEeCG4/exec';
+        const API_KEY = '1d5fa25f7a937aa1d8c42f9f0779654ded5ddff1a446d99691b1ce0bc7fe0db6';
+
+        async function testAPI() {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'Testing...';
+            
+            try {
+                const url = `${API_URL}?endpoint=products&apiKey=${API_KEY}`;
+                console.log('Testing URL:', url);
+                
+                const response = await fetch(url);
+                const text = await response.text();
+                
+                resultEl.textContent = `Status: ${response.status}\n\nResponse:\n${text}`;
+                
+                try {
+                    const json = JSON.parse(text);
+                    console.log('Parsed JSON:', json);
+                } catch (e) {
+                    console.log('Response is not JSON');
+                }
+            } catch (error) {
+                resultEl.textContent = `Error: ${error.message}`;
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
+

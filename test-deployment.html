@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test POS API Deployment</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        button { padding: 10px 20px; font-size: 16px; margin: 10px 0; }
+        pre { background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>POS API Deployment Test</h1>
+    
+    <div>
+        <label>Web App URL:</label><br>
+        <input type="text" id="apiUrl" style="width: 600px; padding: 5px;" 
+               value="https://script.google.com/macros/s/AKfycbw6edHFXKY9WCCugbsYXrKRFyko6c6coEcH5-krwEE4QUZaC93GvRi4CRl9aMbj801V/exec">
+        <br><br>
+        
+        <label>API Key:</label><br>
+        <input type="text" id="apiKey" style="width: 600px; padding: 5px;" 
+               value="1d5fa25f7a937aa1d8c42f9f0779654ded5ddff1a446d99691b1ce0bc7fe0db6">
+        <br><br>
+        
+        <button onclick="testGet()">Test GET Products</button>
+        <button onclick="testPost()">Test POST Create Product</button>
+    </div>
+    
+    <h2>Response:</h2>
+    <pre id="result">Click a button to test...</pre>
+
+    <script>
+        async function testGet() {
+            const resultEl = document.getElementById('result');
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            
+            resultEl.textContent = 'Testing GET request...';
+            resultEl.className = '';
+            
+            try {
+                const url = `${apiUrl}?endpoint=products&apiKey=${encodeURIComponent(apiKey)}`;
+                console.log('GET URL:', url);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
+                
+                const text = await response.text();
+                console.log('Response status:', response.status);
+                console.log('Response text:', text);
+                
+                try {
+                    const json = JSON.parse(text);
+                    resultEl.textContent = `Status: ${response.status}\n\nResponse:\n${JSON.stringify(json, null, 2)}`;
+                    resultEl.className = json.success ? 'success' : 'error';
+                } catch (e) {
+                    resultEl.textContent = `Status: ${response.status}\n\nResponse (not JSON):\n${text}`;
+                    resultEl.className = 'error';
+                }
+            } catch (error) {
+                resultEl.textContent = `❌ Error: ${error.message}\n\nType: ${error.name}\n\nThis might be a CORS issue. Check:\n1. Google Apps Script deployment has "Who has access: Anyone"\n2. Try opening the URL directly in browser\n\nStack: ${error.stack}`;
+                resultEl.className = 'error';
+                console.error('Fetch error:', error);
+            }
+        }
+        
+        async function testPost() {
+            const resultEl = document.getElementById('result');
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            
+            resultEl.textContent = 'Testing POST request (using form data)...';
+            resultEl.className = '';
+            
+            try {
+                const url = `${apiUrl}?endpoint=products&apiKey=${encodeURIComponent(apiKey)}`;
+                const testProduct = {
+                    name: 'Test Product',
+                    sku: 'TEST001',
+                    price: 10.99,
+                    stock: 5,
+                    category: 'Test',
+                    description: 'Test product'
+                };
+                
+                // Use form data instead of JSON to avoid CORS preflight
+                const formData = new URLSearchParams();
+                Object.keys(testProduct).forEach(key => {
+                    if (testProduct[key] !== null && testProduct[key] !== undefined) {
+                        formData.append(key, String(testProduct[key]));
+                    }
+                });
+                formData.append('_endpoint', 'products');
+                formData.append('_apiKey', apiKey);
+                
+                console.log('POST URL:', url);
+                console.log('POST Data (form):', formData.toString());
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: formData.toString(),
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
+                
+                const text = await response.text();
+                console.log('Response status:', response.status);
+                console.log('Response text:', text);
+                
+                try {
+                    const json = JSON.parse(text);
+                    resultEl.textContent = `Status: ${response.status}\n\nResponse:\n${JSON.stringify(json, null, 2)}`;
+                    resultEl.className = json.success ? 'success' : 'error';
+                } catch (e) {
+                    resultEl.textContent = `Status: ${response.status}\n\nResponse (not JSON):\n${text}`;
+                    resultEl.className = 'error';
+                }
+            } catch (error) {
+                resultEl.textContent = `❌ Error: ${error.message}\n\nType: ${error.name}\n\nThis might be a CORS issue. Check:\n1. Google Apps Script deployment has "Who has access: Anyone"\n2. The deployment was redeployed after code changes\n3. Try opening the URL directly in browser to test\n\nStack: ${error.stack}`;
+                resultEl.className = 'error';
+                console.error('Fetch error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
+
