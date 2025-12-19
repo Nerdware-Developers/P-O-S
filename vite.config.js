@@ -17,20 +17,25 @@ export default defineConfig(({ command, mode }) => {
       manifest: {
         name: 'POS System',
         short_name: 'POS',
-        description: 'Point of Sale System',
+        description: 'Point of Sale System with Google Sheets Backend',
         theme_color: '#1f2937',
-        background_color: '#ffffff',
+        background_color: '#1f2937',
         display: 'standalone',
+        orientation: 'any',
+        start_url: command === 'build' ? '/P-O-S/' : '/',
+        scope: command === 'build' ? '/P-O-S/' : '/',
         icons: [
           {
             src: 'pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'
           },
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any maskable'
           }
         ]
       },

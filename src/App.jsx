@@ -10,6 +10,7 @@ import ExpenseManagement from './components/ExpenseManagement'
 import AdvancedReports from './components/AdvancedReports'
 import Login from './components/Login'
 import ErrorBoundary from './components/ErrorBoundary'
+import InstallPrompt from './components/InstallPrompt'
 import { checkAuth, logout } from './utils/auth'
 
 function App() {
@@ -78,6 +79,7 @@ function App() {
             </ErrorBoundary>
           </main>
         </div>
+        <InstallPrompt />
       </div>
     </Router>
   )
