@@ -39,7 +39,9 @@ function ExpenseManagement() {
       setError(null)
       const data = await expensesAPI.getAll()
       console.log('Expenses API Response:', data)
-      setExpenses(data.expenses || data || [])
+      // Ensure expenses is always an array
+      const expensesData = data.expenses || data || []
+      setExpenses(Array.isArray(expensesData) ? expensesData : [])
     } catch (err) {
       console.error('Expense loading error:', err)
       setError(`Failed to load expenses: ${err.message || 'Unknown error'}. Check browser console for details.`)
@@ -127,20 +129,36 @@ function ExpenseManagement() {
     }
   }
 
-  // Calculate totals
-  const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0)
-  const todayExpenses = expenses.filter(exp => {
-    const expDate = new Date(exp.date).toISOString().split('T')[0]
-    const today = new Date().toISOString().split('T')[0]
-    return expDate === today
-  }).reduce((sum, exp) => sum + (exp.amount || 0), 0)
+  // Ensure expenses is always an array
+  const expensesArray = Array.isArray(expenses) ? expenses : []
+  
+  // Calculate totals - with safety checks
+  const totalExpenses = expensesArray.reduce((sum, exp) => sum + (exp?.amount || 0), 0)
+  const todayExpenses = expensesArray.filter(exp => {
+    if (!exp || !exp.date) return false
+    try {
+      const expDate = new Date(exp.date).toISOString().split('T')[0]
+      const today = new Date().toISOString().split('T')[0]
+      return expDate === today
+    } catch (e) {
+      return false
+    }
+  }).reduce((sum, exp) => sum + (exp?.amount || 0), 0)
 
-  const expensesByCategory = expenses.reduce((acc, exp) => {
+  const expensesByCategory = expensesArray.reduce((acc, exp) => {
+    if (!exp) return acc
     const cat = exp.category || 'Uncategorized'
     acc[cat] = (acc[cat] || 0) + (exp.amount || 0)
     return acc
   }, {})
 
+  console.log('ExpenseManagement rendering', { loading, error, expensesCount: expensesArray.length, expenses: expensesArray })
+  
+  // Always render at least the header
+  if (!expenses && !loading && !error) {
+    console.warn('ExpenseManagement: No expenses data, loading, or error state')
+  }
+  
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
@@ -169,19 +187,19 @@ function ExpenseManagement() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Total Expenses</h3>
           <p className="text-3xl font-bold text-red-600 dark:text-red-400">
-            KSH {totalExpenses.toFixed(2)}
+            KSH {(totalExpenses || 0).toFixed(2)}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Today's Expenses</h3>
           <p className="text-3xl font-bold text-red-600 dark:text-red-400">
-            KSH {todayExpenses.toFixed(2)}
+            KSH {(todayExpenses || 0).toFixed(2)}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Total Records</h3>
           <p className="text-3xl font-bold text-gray-800 dark:text-white">
-            {expenses.length}
+            {expensesArray.length}
           </p>
         </div>
       </div>
@@ -204,7 +222,10 @@ function ExpenseManagement() {
       )}
 
       {loading ? (
-        <div className="text-center py-8">Loading expenses...</div>
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Loading expenses...</p>
+        </div>
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
           <div className="overflow-x-auto">
@@ -232,14 +253,14 @@ function ExpenseManagement() {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {expenses.length === 0 ? (
+                {expensesArray.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                       No expenses recorded yet
                     </td>
                   </tr>
                 ) : (
-                  expenses.map((expense) => (
+                  expensesArray.map((expense) => (
                     <tr key={expense.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {new Date(expense.date).toLocaleDateString()}

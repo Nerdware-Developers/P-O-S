@@ -9,8 +9,6 @@ function SalesScreen() {
   const [error, setError] = useState(null)
   const [checkingOut, setCheckingOut] = useState(false)
 
-  const taxRate = 0.08 // 8% tax - adjust as needed
-
   useEffect(() => {
     loadProducts()
   }, [])
@@ -61,12 +59,8 @@ function SalesScreen() {
     return cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
   }
 
-  const calculateTax = () => {
-    return calculateSubtotal() * taxRate
-  }
-
   const calculateTotal = () => {
-    return calculateSubtotal() + calculateTax()
+    return calculateSubtotal()
   }
 
   const handleCheckout = async () => {
@@ -78,23 +72,30 @@ function SalesScreen() {
     try {
       setCheckingOut(true)
       // Calculate profit for each item
+      // Only calculate profit if buyingPrice is set and greater than 0
       const totalProfit = cart.reduce((sum, item) => {
-        const buyingPrice = item.buyingPrice || 0
-        return sum + ((item.price - buyingPrice) * item.quantity)
+        const buyingPrice = parseFloat(item.buyingPrice) || 0
+        if (buyingPrice > 0) {
+          return sum + ((item.price - buyingPrice) * item.quantity)
+        }
+        return sum + 0 // No profit if buying price is not set
       }, 0)
 
       const sale = {
-        items: cart.map(item => ({
-          productId: item.id,
-          productName: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          buyingPrice: item.buyingPrice || 0,
-          subtotal: item.price * item.quantity,
-          profit: (item.price - (item.buyingPrice || 0)) * item.quantity,
-        })),
+        items: cart.map(item => {
+          const buyingPrice = parseFloat(item.buyingPrice) || 0
+          const itemProfit = buyingPrice > 0 ? ((item.price - buyingPrice) * item.quantity) : 0
+          return {
+            productId: item.id,
+            productName: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            buyingPrice: buyingPrice,
+            subtotal: item.price * item.quantity,
+            profit: itemProfit,
+          }
+        }),
         subtotal: calculateSubtotal(),
-        tax: calculateTax(),
         total: calculateTotal(),
         profit: totalProfit,
         timestamp: new Date().toISOString(),
@@ -236,15 +237,7 @@ function SalesScreen() {
                 </div>
 
                 <div className="border-t border-gray-300 dark:border-gray-600 pt-4 space-y-2">
-                  <div className="flex justify-between text-gray-700 dark:text-gray-300">
-                    <span>Subtotal:</span>
-                    <span>KSH {calculateSubtotal().toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-700 dark:text-gray-300">
-                    <span>Tax ({(taxRate * 100).toFixed(0)}%):</span>
-                    <span>KSH {calculateTax().toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-bold text-gray-800 dark:text-white pt-2 border-t border-gray-300 dark:border-gray-600">
+                  <div className="flex justify-between text-lg font-bold text-gray-800 dark:text-white">
                     <span>Total:</span>
                     <span>KSH {calculateTotal().toFixed(2)}</span>
                   </div>

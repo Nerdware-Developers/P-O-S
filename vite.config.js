@@ -2,8 +2,13 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig({
-  base: '/P-O-S/',
+export default defineConfig(({ command, mode }) => {
+  // Only use /P-O-S/ base path for production builds (GitHub Pages)
+  // Use / for local development
+  const base = command === 'build' ? '/P-O-S/' : '/'
+  
+  return {
+    base,
   plugins: [
     react(),
     VitePWA({
@@ -34,9 +39,10 @@ export default defineConfig({
       }
     })
   ],
-  server: {
-    port: 3000,
-    open: true
+    server: {
+      port: 3000,
+      open: true
+    }
   }
 })
 

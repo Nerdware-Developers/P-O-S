@@ -9,6 +9,7 @@ import ProductDisplay from './components/ProductDisplay'
 import ExpenseManagement from './components/ExpenseManagement'
 import AdvancedReports from './components/AdvancedReports'
 import Login from './components/Login'
+import ErrorBoundary from './components/ErrorBoundary'
 import { checkAuth, logout } from './utils/auth'
 
 function App() {
@@ -61,15 +62,17 @@ function App() {
         <div className="flex">
           <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <main className="flex-1 p-4 md:p-6 lg:p-8">
-            <Routes>
-              <Route path="/" element={<SalesScreen />} />
-              <Route path="/inventory" element={<InventoryManagement />} />
-              <Route path="/products" element={<ProductDisplay />} />
-              <Route path="/expenses" element={<ExpenseManagement />} />
-              <Route path="/reports" element={<SalesReports />} />
-              <Route path="/analytics" element={<AdvancedReports />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/" element={<SalesScreen />} />
+                <Route path="/inventory" element={<InventoryManagement />} />
+                <Route path="/products" element={<ProductDisplay />} />
+                <Route path="/expenses" element={<ExpenseManagement />} />
+                <Route path="/reports" element={<SalesReports />} />
+                <Route path="/analytics" element={<AdvancedReports />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </ErrorBoundary>
           </main>
         </div>
       </div>

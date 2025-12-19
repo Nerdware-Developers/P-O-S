@@ -48,11 +48,11 @@ function ProductDisplay() {
 
     try {
       setSelling(true)
-      const taxRate = 0.08 // 8% tax
       const itemSubtotal = sellingProduct.price * quantity
-      const itemTax = itemSubtotal * taxRate
-      const itemTotal = itemSubtotal + itemTax
-      const itemProfit = (sellingProduct.price - (sellingProduct.buyingPrice || 0)) * quantity
+      const itemTotal = itemSubtotal
+      // Only calculate profit if buyingPrice is set and greater than 0
+      const buyingPrice = parseFloat(sellingProduct.buyingPrice) || 0
+      const itemProfit = buyingPrice > 0 ? ((parseFloat(sellingProduct.price) || 0) - buyingPrice) * quantity : 0
 
       // Create sale
       const sale = {
@@ -60,13 +60,12 @@ function ProductDisplay() {
           productId: sellingProduct.id,
           productName: sellingProduct.name,
           quantity: quantity,
-          price: sellingProduct.price,
-          buyingPrice: sellingProduct.buyingPrice || 0,
+          price: parseFloat(sellingProduct.price) || 0,
+          buyingPrice: parseFloat(sellingProduct.buyingPrice) || 0,
           subtotal: itemSubtotal,
           profit: itemProfit,
         }],
         subtotal: itemSubtotal,
-        tax: itemTax,
         total: itemTotal,
         profit: itemProfit,
         timestamp: new Date().toISOString(),
@@ -215,9 +214,9 @@ function ProductDisplay() {
                     <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                       KSH {product.price?.toFixed(2) || '0.00'}
                     </div>
-                    {product.buyingPrice > 0 && (
+                    {(parseFloat(product.buyingPrice) || 0) > 0 && (
                       <div className="text-xs text-gray-500 dark:text-gray-400 line-through">
-                        Cost: KSH {product.buyingPrice.toFixed(2)}
+                        Cost: KSH {(parseFloat(product.buyingPrice) || 0).toFixed(2)}
                       </div>
                     )}
                   </div>
@@ -287,14 +286,22 @@ function ProductDisplay() {
                     KSH {(sellingProduct.price * quantity).toFixed(2)}
                   </span>
                 </div>
-                {sellingProduct.buyingPrice > 0 && (
-                  <div className="flex justify-between text-sm text-green-600 dark:text-green-400 border-t border-gray-300 dark:border-gray-600 pt-2">
-                    <span>Profit:</span>
-                    <span className="font-semibold">
-                      KSH {((sellingProduct.price - sellingProduct.buyingPrice) * quantity).toFixed(2)}
-                    </span>
-                  </div>
-                )}
+                {(() => {
+                  const buyingPrice = parseFloat(sellingProduct.buyingPrice) || 0;
+                  if (buyingPrice > 0) {
+                    const buyingPrice = parseFloat(sellingProduct.buyingPrice) || 0
+                    const profit = buyingPrice > 0 ? ((parseFloat(sellingProduct.price) || 0) - buyingPrice) * quantity : 0;
+                    return (
+                      <div className="flex justify-between text-sm text-green-600 dark:text-green-400 border-t border-gray-300 dark:border-gray-600 pt-2">
+                        <span>Profit:</span>
+                        <span className="font-semibold">
+                          KSH {profit.toFixed(2)}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
               <div className="flex justify-end space-x-3 pt-4">
                 <button

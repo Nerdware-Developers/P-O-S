@@ -86,7 +86,12 @@ async function apiCall(endpoint, method = 'GET', data = null, id = null, additio
     // Add all data fields
     Object.keys(data).forEach(key => {
       if (data[key] !== null && data[key] !== undefined) {
-        formData.append(key, String(data[key]))
+        // Stringify arrays and objects, otherwise convert to string
+        if (Array.isArray(data[key]) || (typeof data[key] === 'object' && data[key] !== null)) {
+          formData.append(key, JSON.stringify(data[key]))
+        } else {
+          formData.append(key, String(data[key]))
+        }
       }
     })
     
@@ -230,6 +235,11 @@ export const expensesAPI = {
   create: (expense) => apiCall('expenses', 'POST', expense),
   update: (id, expense) => apiCall('expenses', 'PUT', expense, id),
   delete: (id) => apiCall('expenses', 'DELETE', null, id),
+}
+
+// Summary API (real-time daily/monthly sales and profit)
+export const summaryAPI = {
+  get: () => apiCall('summary', 'GET'),
 }
 
 export default apiCall

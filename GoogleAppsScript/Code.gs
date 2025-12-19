@@ -21,7 +21,8 @@ const SHEET_NAMES = {
   PRODUCTS: 'Products',
   SALES: 'Sales',
   USERS: 'Users',
-  EXPENSES: 'Expenses'
+  EXPENSES: 'Expenses',
+  SUMMARY: 'Summary'
 };
 
 // ============ HELPER FUNCTIONS ============
@@ -48,7 +49,9 @@ function getSheet(sheetName) {
       if (sheetName === SHEET_NAMES.PRODUCTS) {
         sheet.appendRow(['id', 'name', 'price', 'buyingPrice', 'stock', 'unitType', 'category', 'description', 'image', 'size', 'color', 'createdAt', 'updatedAt']);
       } else if (sheetName === SHEET_NAMES.SALES) {
-        sheet.appendRow(['id', 'items', 'subtotal', 'tax', 'total', 'profit', 'timestamp', 'createdAt']);
+        sheet.appendRow(['id', 'items', 'subtotal', 'total', 'profit', 'timestamp', 'createdAt']);
+      } else if (sheetName === SHEET_NAMES.SUMMARY) {
+        sheet.appendRow(['date', 'dailySales', 'dailyProfit', 'monthlySales', 'monthlyProfit', 'lastUpdated']);
       } else if (sheetName === SHEET_NAMES.USERS) {
         sheet.appendRow(['id', 'email', 'password', 'name', 'role', 'createdAt']);
       } else if (sheetName === SHEET_NAMES.EXPENSES) {
@@ -90,6 +93,17 @@ function objectToRow(obj, headers) {
 
 function generateId() {
   return Utilities.getUuid();
+}
+
+function formatItemsAsText(items) {
+  if (!items || !Array.isArray(items)) {
+    return '';
+  }
+  return items.map(item => {
+    const name = item.productName || item.name || 'Unknown';
+    const qty = item.quantity || 0;
+    return `${name} (qty: ${qty})`;
+  }).join(', ');
 }
 
 function validateApiKey(request) {
@@ -296,20 +310,59 @@ function getSales(filters) {
   const headers = getHeaders(sheet);
   const data = getDataRange(sheet);
   
+  // Ensure profit column exists in headers
+  if (!headers.includes('profit')) {
+    console.log('Profit column missing, adding it...');
+    headers.push('profit');
+    sheet.getRange(1, headers.length).setValue('profit');
+  }
+  
   let sales = data.map(row => {
     const sale = rowToObject(row, headers);
-    // Parse items JSON string
+    // Items are stored as JSON string - try to parse it
     if (typeof sale.items === 'string') {
-      try {
-        sale.items = JSON.parse(sale.items);
-      } catch (e) {
+      // Check if it's JSON (starts with [ or {)
+      const trimmed = sale.items.trim();
+      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+        try {
+          sale.items = JSON.parse(sale.items);
+        } catch (e) {
+          console.error('Failed to parse items JSON:', e, sale.items);
+          // If it's old formatted text like "Product (qty: 2)", convert to array format
+          // or if it's "[object Object]", set to empty array
+          if (sale.items.includes('[object Object]')) {
+            sale.items = [];
+          } else {
+            // Try to extract info from formatted text (fallback)
+            sale.items = [];
+          }
+        }
+      } else if (sale.items.includes('[object Object]')) {
+        // Handle old data with "[object Object]"
         sale.items = [];
       }
+      // If it's not JSON and not "[object Object]", keep as string (formatted text)
+    } else if (!Array.isArray(sale.items)) {
+      // If items is not a string and not an array, set to empty array
+      sale.items = [];
     }
     sale.subtotal = parseFloat(sale.subtotal) || 0;
-    sale.tax = parseFloat(sale.tax) || 0;
-    sale.total = parseFloat(sale.total) || 0;
+    // If total is 0 or missing (old data), use subtotal (since we removed tax)
+    sale.total = parseFloat(sale.total) || sale.subtotal;
+    // Parse profit - if missing, try to calculate from items if available
     sale.profit = parseFloat(sale.profit) || 0;
+    
+    // If profit is 0 but we have items with profit data, calculate it
+    if (sale.profit === 0 && Array.isArray(sale.items) && sale.items.length > 0) {
+      const calculatedProfit = sale.items.reduce((sum, item) => {
+        return sum + (parseFloat(item.profit || 0));
+      }, 0);
+      if (calculatedProfit > 0) {
+        sale.profit = calculatedProfit;
+        console.log('Calculated profit from items:', calculatedProfit, 'for sale:', sale.id);
+      }
+    }
+    
     return sale;
   });
   
@@ -336,13 +389,42 @@ function createSale(saleData) {
   const sheet = getSheet(SHEET_NAMES.SALES);
   const headers = getHeaders(sheet);
   
+  // Parse items if it's a string (from form data)
+  let items = saleData.items || [];
+  console.log('createSale - items type:', typeof items, 'items value:', items);
+  
+  if (typeof items === 'string') {
+    try {
+      items = JSON.parse(items);
+      console.log('Parsed items from JSON string:', items);
+    } catch (e) {
+      console.error('Failed to parse items JSON:', e, items);
+      items = [];
+    }
+  }
+  
+  // Ensure items is an array
+  if (!Array.isArray(items)) {
+    console.error('Items is not an array:', items, 'type:', typeof items);
+    items = [];
+  }
+  
+  // Store items as JSON string so we can parse it back for API responses
+  // This allows us to reconstruct the array when reading back
+  const itemsJsonString = JSON.stringify(items);
+  console.log('Storing items as JSON string:', itemsJsonString);
+  
+  // Calculate totals without tax
+  const subtotal = parseFloat(saleData.subtotal) || 0;
+  const total = subtotal; // No tax, so total = subtotal
+  const profit = parseFloat(saleData.profit) || 0;
+  
   const newSale = {
     id: generateId(),
-    items: JSON.stringify(saleData.items || []),
-    subtotal: saleData.subtotal || 0,
-    tax: saleData.tax || 0,
-    total: saleData.total || 0,
-    profit: saleData.profit || 0,
+    items: itemsJsonString, // Store as JSON string (can be parsed back to array)
+    subtotal: subtotal,
+    total: total,
+    profit: profit,
     timestamp: saleData.timestamp || new Date().toISOString(),
     createdAt: new Date().toISOString()
   };
@@ -350,10 +432,275 @@ function createSale(saleData) {
   const row = objectToRow(newSale, headers);
   sheet.appendRow(row);
   
-  // Parse items back for response
-  newSale.items = saleData.items || [];
+  // Update daily and monthly summary in real-time
+  updateSalesSummary(newSale);
+  
+  // Return items as array for API response
+  newSale.items = items;
   
   return { success: true, sale: newSale };
+}
+
+// ============ SALES SUMMARY FUNCTIONS ============
+
+function updateSalesSummary(sale) {
+  try {
+    console.log('updateSalesSummary called with sale:', sale);
+    const summarySheet = getSheet(SHEET_NAMES.SUMMARY);
+    const headers = getHeaders(summarySheet);
+    const data = getDataRange(summarySheet);
+    
+    const saleDate = new Date(sale.timestamp);
+    const saleDateOnly = new Date(saleDate);
+    saleDateOnly.setHours(0, 0, 0, 0);
+    const saleDateStr = saleDateOnly.toISOString().split('T')[0];
+    const saleMonth = saleDate.getMonth() + 1;
+    const saleYear = saleDate.getFullYear();
+    
+    console.log('Sale date info:', { saleDateStr, saleMonth, saleYear, saleTotal: sale.total, saleProfit: sale.profit });
+    
+    // Recalculate monthly totals from all sales in the month FIRST
+    const salesSheet = getSheet(SHEET_NAMES.SALES);
+    const salesHeaders = getHeaders(salesSheet);
+    const allSales = getDataRange(salesSheet);
+    
+    let monthlySales = 0;
+    let monthlyProfit = 0;
+    
+    allSales.forEach(saleRow => {
+      const saleObj = rowToObject(saleRow, salesHeaders);
+      if (saleObj.timestamp) {
+        const saleTimestamp = new Date(saleObj.timestamp);
+        if (saleTimestamp.getMonth() + 1 === saleMonth && saleTimestamp.getFullYear() === saleYear) {
+          // Handle total - use subtotal if total is 0 (for old data)
+          const saleTotal = parseFloat(saleObj.total) || parseFloat(saleObj.subtotal) || 0;
+          monthlySales += saleTotal;
+          monthlyProfit += parseFloat(saleObj.profit || 0);
+        }
+      }
+    });
+    
+    console.log('Calculated monthly totals:', { monthlySales, monthlyProfit });
+    
+    // Find or create today's row
+    let todayRowIndex = data.findIndex(row => {
+      const obj = rowToObject(row, headers);
+      return obj.date === saleDateStr;
+    });
+    
+    if (todayRowIndex === -1) {
+      // Create new row for today
+      const newRow = {
+        date: saleDateStr,
+        dailySales: sale.total,
+        dailyProfit: sale.profit,
+        monthlySales: monthlySales,
+        monthlyProfit: monthlyProfit,
+        lastUpdated: new Date().toISOString()
+      };
+      const row = objectToRow(newRow, headers);
+      summarySheet.appendRow(row);
+      console.log('Created new summary row for today');
+    } else {
+      // Update existing row
+      const existingRow = rowToObject(data[todayRowIndex], headers);
+      const updatedRow = {
+        date: existingRow.date,
+        dailySales: parseFloat(existingRow.dailySales || 0) + parseFloat(sale.total),
+        dailyProfit: parseFloat(existingRow.dailyProfit || 0) + parseFloat(sale.profit),
+        monthlySales: monthlySales,
+        monthlyProfit: monthlyProfit,
+        lastUpdated: new Date().toISOString()
+      };
+      const row = objectToRow(updatedRow, headers);
+      summarySheet.getRange(todayRowIndex + 2, 1, 1, headers.length).setValues([row]);
+      console.log('Updated existing summary row');
+    }
+    
+    // Refresh data and update all rows for the same month with recalculated totals
+    const refreshedData = getDataRange(summarySheet);
+    refreshedData.forEach((row, index) => {
+      const obj = rowToObject(row, headers);
+      if (obj.date) {
+        const rowDate = new Date(obj.date);
+        if (rowDate.getMonth() + 1 === saleMonth && rowDate.getFullYear() === saleYear) {
+          const updatedRow = {
+            date: obj.date,
+            dailySales: parseFloat(obj.dailySales || 0),
+            dailyProfit: parseFloat(obj.dailyProfit || 0),
+            monthlySales: monthlySales,
+            monthlyProfit: monthlyProfit,
+            lastUpdated: new Date().toISOString()
+          };
+          const rowData = objectToRow(updatedRow, headers);
+          summarySheet.getRange(index + 2, 1, 1, headers.length).setValues([rowData]);
+        }
+      }
+    });
+    
+    console.log('Summary update completed successfully');
+  } catch (error) {
+    console.error('Error updating sales summary:', error);
+    console.error('Error stack:', error.stack);
+    // Don't throw - summary update failure shouldn't break the sale
+  }
+}
+
+function getSalesSummary() {
+  try {
+    const summarySheet = getSheet(SHEET_NAMES.SUMMARY);
+    const headers = getHeaders(summarySheet);
+    const data = getDataRange(summarySheet);
+    
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    
+    console.log('getSalesSummary - Looking for date:', today, 'Month:', currentMonth, 'Year:', currentYear);
+    console.log('Summary sheet data rows:', data.length);
+    
+    // Find today's summary
+    const todayRow = data.find(row => {
+      const obj = rowToObject(row, headers);
+      const rowDate = obj.date ? new Date(obj.date).toISOString().split('T')[0] : null;
+      return rowDate === today;
+    });
+    
+    // Find current month's summary (use today's row if it exists)
+    const monthlyRow = todayRow || data.find(row => {
+      const obj = rowToObject(row, headers);
+      if (!obj.date) return false;
+      const rowDate = new Date(obj.date);
+      return rowDate.getMonth() + 1 === currentMonth && rowDate.getFullYear() === currentYear;
+    });
+    
+    const todayObj = todayRow ? rowToObject(todayRow, headers) : null;
+    const monthlyObj = monthlyRow ? rowToObject(monthlyRow, headers) : null;
+    
+    let dailySales = todayObj ? parseFloat(todayObj.dailySales || 0) : 0;
+    let dailyProfit = todayObj ? parseFloat(todayObj.dailyProfit || 0) : 0;
+    let monthlySales = monthlyObj ? parseFloat(monthlyObj.monthlySales || 0) : 0;
+    let monthlyProfit = monthlyObj ? parseFloat(monthlyObj.monthlyProfit || 0) : 0;
+    
+    // Always recalculate from sales data to ensure accuracy (summary sheet might be out of sync)
+    // This ensures profit is always calculated correctly even if summary sheet has issues
+    console.log('Recalculating from sales data to ensure accuracy...');
+    const salesSheet = getSheet(SHEET_NAMES.SALES);
+    const salesHeaders = getHeaders(salesSheet);
+    const allSales = getDataRange(salesSheet);
+    
+    // Ensure profit column exists
+    if (!salesHeaders.includes('profit')) {
+      console.log('Profit column missing in sales sheet, adding it...');
+      salesHeaders.push('profit');
+      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+      const salesSheetObj = ss.getSheetByName(SHEET_NAMES.SALES);
+      salesSheetObj.getRange(1, salesHeaders.length).setValue('profit');
+    }
+    
+    // Reset and calculate daily totals from actual sales
+    let calculatedDailySales = 0;
+    let calculatedDailyProfit = 0;
+    allSales.forEach((saleRow, index) => {
+      const saleObj = rowToObject(saleRow, salesHeaders);
+      if (saleObj.timestamp) {
+        const saleDate = new Date(saleObj.timestamp).toISOString().split('T')[0];
+        if (saleDate === today) {
+          const saleTotal = parseFloat(saleObj.total) || parseFloat(saleObj.subtotal) || 0;
+          let saleProfit = parseFloat(saleObj.profit || 0);
+          
+          // If profit is 0, try to calculate from items
+          if (saleProfit === 0 && saleObj.items) {
+            try {
+              let items = saleObj.items;
+              if (typeof items === 'string') {
+                items = JSON.parse(items);
+              }
+              if (Array.isArray(items)) {
+                saleProfit = items.reduce((sum, item) => {
+                  return sum + (parseFloat(item.profit || 0));
+                }, 0);
+                console.log('Calculated profit from items for daily sale:', saleProfit);
+              }
+            } catch (e) {
+              console.error('Error calculating profit from items:', e);
+            }
+          }
+          
+          calculatedDailySales += saleTotal;
+          calculatedDailyProfit += saleProfit;
+          console.log('Daily sale found:', { 
+            rowIndex: index + 2,
+            date: saleDate, 
+            total: saleTotal, 
+            profit: saleProfit, 
+            profitRaw: saleObj.profit,
+            hasItems: !!saleObj.items,
+            allFields: Object.keys(saleObj)
+          });
+        }
+      }
+    });
+    
+    // Reset and calculate monthly totals from actual sales
+    let calculatedMonthlySales = 0;
+    let calculatedMonthlyProfit = 0;
+    allSales.forEach(saleRow => {
+      const saleObj = rowToObject(saleRow, salesHeaders);
+      if (saleObj.timestamp) {
+        const saleDate = new Date(saleObj.timestamp);
+        if (saleDate.getMonth() + 1 === currentMonth && saleDate.getFullYear() === currentYear) {
+          const saleTotal = parseFloat(saleObj.total) || parseFloat(saleObj.subtotal) || 0;
+          let saleProfit = parseFloat(saleObj.profit || 0);
+          
+          // If profit is 0, try to calculate from items
+          if (saleProfit === 0 && saleObj.items) {
+            try {
+              let items = saleObj.items;
+              if (typeof items === 'string') {
+                items = JSON.parse(items);
+              }
+              if (Array.isArray(items)) {
+                saleProfit = items.reduce((sum, item) => {
+                  return sum + (parseFloat(item.profit || 0));
+                }, 0);
+              }
+            } catch (e) {
+              // Ignore errors
+            }
+          }
+          
+          calculatedMonthlySales += saleTotal;
+          calculatedMonthlyProfit += saleProfit;
+        }
+      }
+    });
+    
+    // Use calculated values (they're always accurate from source data)
+    dailySales = calculatedDailySales;
+    dailyProfit = calculatedDailyProfit;
+    monthlySales = calculatedMonthlySales;
+    monthlyProfit = calculatedMonthlyProfit;
+    
+    console.log('Final calculated values:', { dailySales, dailyProfit, monthlySales, monthlyProfit });
+    
+    return {
+      dailySales,
+      dailyProfit,
+      monthlySales,
+      monthlyProfit
+    };
+  } catch (error) {
+    console.error('Error in getSalesSummary:', error);
+    // Return zeros if there's an error
+    return {
+      dailySales: 0,
+      dailyProfit: 0,
+      monthlySales: 0,
+      monthlyProfit: 0
+    };
+  }
 }
 
 // ============ EXPENSES API ============
@@ -413,24 +760,36 @@ function getExpenseById(id) {
 }
 
 function createExpense(expenseData) {
-  const sheet = getSheet(SHEET_NAMES.EXPENSES);
-  const headers = getHeaders(sheet);
-  
-  const newExpense = {
-    id: generateId(),
-    description: expenseData.description || '',
-    category: expenseData.category || '',
-    amount: expenseData.amount || 0,
-    date: expenseData.date || new Date().toISOString().split('T')[0],
-    paymentMethod: expenseData.paymentMethod || 'Cash',
-    notes: expenseData.notes || '',
-    createdAt: new Date().toISOString()
-  };
-  
-  const row = objectToRow(newExpense, headers);
-  sheet.appendRow(row);
-  
-  return { success: true, expense: newExpense };
+  try {
+    console.log('createExpense called with:', expenseData);
+    const sheet = getSheet(SHEET_NAMES.EXPENSES);
+    const headers = getHeaders(sheet);
+    console.log('Expenses sheet headers:', headers);
+    
+    // Parse amount as number (form data sends strings)
+    const amount = parseFloat(expenseData.amount) || 0;
+    
+    const newExpense = {
+      id: generateId(),
+      description: expenseData.description || '',
+      category: expenseData.category || '',
+      amount: amount,
+      date: expenseData.date || new Date().toISOString().split('T')[0],
+      paymentMethod: expenseData.paymentMethod || 'Cash',
+      notes: expenseData.notes || '',
+      createdAt: new Date().toISOString()
+    };
+    
+    console.log('New expense object:', newExpense);
+    const row = objectToRow(newExpense, headers);
+    console.log('Row to append:', row);
+    sheet.appendRow(row);
+    
+    return { success: true, expense: newExpense };
+  } catch (error) {
+    console.error('Error in createExpense:', error);
+    throw new Error('Failed to create expense: ' + error.toString());
+  }
 }
 
 function updateExpense(id, expenseData) {
@@ -567,8 +926,19 @@ function handleRequest(e, method = 'GET') {
     
     // Get endpoint from pathInfo or parameter first
     const pathInfo = e.pathInfo || '';
-    let endpoint = (e.parameter && e.parameter.endpoint) || pathInfo.split('/')[0] || '';
+    // Check for endpoint in multiple places (endpoint, _endpoint, or pathInfo)
+    let endpoint = (e.parameter && (e.parameter.endpoint || e.parameter._endpoint)) || pathInfo.split('/')[0] || '';
     let id = (e.parameter && e.parameter.id) || (pathInfo.split('/').length > 1 ? pathInfo.split('/')[1] : '');
+    
+    // Debug logging
+    console.log('Initial endpoint extraction:', {
+      endpoint: endpoint,
+      pathInfo: pathInfo,
+      hasParameter: !!e.parameter,
+      parameterKeys: e.parameter ? Object.keys(e.parameter) : [],
+      endpointFromParam: e.parameter ? e.parameter.endpoint : null,
+      _endpointFromParam: e.parameter ? e.parameter._endpoint : null
+    });
     
     // Parse request body for POST/PUT and extract endpoint
     let requestData = {};
@@ -607,6 +977,12 @@ function handleRequest(e, method = 'GET') {
         else if (e.postData && e.postData.contents && contentType.includes('application/x-www-form-urlencoded')) {
           // Form data is automatically parsed into e.parameter by Google Apps Script
           requestData = e.parameter || {};
+          // Extract endpoint from form data if present (overrides query param)
+          if (requestData._endpoint) {
+            endpoint = requestData._endpoint;
+            console.log('Endpoint extracted from form data _endpoint:', endpoint);
+          }
+          console.log('Form data parsed, endpoint is now:', endpoint, 'requestData keys:', Object.keys(requestData));
         }
         // No postData or unknown content type, use parameters
         else {
@@ -633,6 +1009,14 @@ function handleRequest(e, method = 'GET') {
     }
     
     let result;
+    
+    // Final endpoint check and logging
+    console.log('Routing request:', {
+      method: method,
+      endpoint: endpoint,
+      id: id,
+      hasRequestData: !!requestData && Object.keys(requestData).length > 0
+    });
     
     // Route handling using endpoint parameter
     if (endpoint === 'products') {
@@ -669,6 +1053,7 @@ function handleRequest(e, method = 'GET') {
         result = { success: false, error: 'Invalid request' };
       }
     } else if (endpoint === 'expenses') {
+      console.log('Expenses endpoint matched, method:', method);
       if (method === 'GET') {
         if (id) {
           result = getExpenseById(id);
@@ -676,13 +1061,19 @@ function handleRequest(e, method = 'GET') {
           result = getExpenses(e.parameter);
         }
       } else if (method === 'POST') {
+        // Log for debugging
+        console.log('Creating expense with data:', requestData);
+        if (!requestData || Object.keys(requestData).length === 0) {
+          throw new Error('No expense data received. Check that the request body is being sent correctly.');
+        }
         result = createExpense(requestData);
       } else if (method === 'PUT' && id) {
+        console.log('Updating expense', id, 'with data:', requestData);
         result = updateExpense(id, requestData);
       } else if (method === 'DELETE' && id) {
         result = deleteExpense(id);
       } else {
-        result = { success: false, error: 'Invalid request' };
+        result = { success: false, error: 'Invalid request method for expenses: ' + method };
       }
     } else if (endpoint === 'users') {
       const action = e.parameter.action || '';
@@ -695,8 +1086,14 @@ function handleRequest(e, method = 'GET') {
       } else {
         result = { success: false, error: 'Invalid request' };
       }
+    } else if (endpoint === 'summary') {
+      if (method === 'GET') {
+        result = { success: true, ...getSalesSummary() };
+      } else {
+        result = { success: false, error: 'Invalid request method for summary' };
+      }
     } else {
-      result = { success: false, error: 'Invalid endpoint. Use ?endpoint=products|sales|users|expenses' };
+      result = { success: false, error: 'Invalid endpoint. Use ?endpoint=products|sales|users|expenses|summary' };
     }
     
     // Google Apps Script automatically handles CORS when "Who has access: Anyone" is set

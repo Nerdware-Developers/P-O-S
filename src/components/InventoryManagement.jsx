@@ -203,7 +203,7 @@ function InventoryManagement() {
                       KSH {product.price?.toFixed(2) || '0.00'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      KSH {product.buyingPrice?.toFixed(2) || '0.00'}
+                      KSH {(parseFloat(product.buyingPrice) || 0).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       <span className={product.stock < 10 ? 'text-red-600 dark:text-red-400 font-semibold' : ''}>

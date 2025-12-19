@@ -76,8 +76,8 @@ function AdvancedReports() {
     })
   }
 
-  const filteredSales = getFilteredData(sales)
-  const filteredExpenses = getFilteredData(expenses, 'date')
+  const filteredSales = Array.isArray(sales) ? getFilteredData(sales) : []
+  const filteredExpenses = Array.isArray(expenses) ? getFilteredData(expenses, 'date') : []
 
   // Calculate metrics
   const totalSales = filteredSales.reduce((sum, sale) => sum + (sale.total || 0), 0)
@@ -86,32 +86,42 @@ function AdvancedReports() {
   const netProfit = totalProfit - totalExpenses
 
   // Sales by day
-  const salesByDay = filteredSales.reduce((acc, sale) => {
-    const date = new Date(sale.timestamp).toLocaleDateString()
-    acc[date] = (acc[date] || 0) + (sale.total || 0)
+  const salesByDay = Array.isArray(filteredSales) ? filteredSales.reduce((acc, sale) => {
+    if (!sale || !sale.timestamp) return acc
+    try {
+      const date = new Date(sale.timestamp).toLocaleDateString()
+      acc[date] = (acc[date] || 0) + (sale.total || 0)
+    } catch (e) {
+      console.error('Error processing sale:', e, sale)
+    }
     return acc
-  }, {})
+  }, {}) : {}
 
   // Top selling products
   const productSales = {}
-  filteredSales.forEach(sale => {
-    if (sale.items && Array.isArray(sale.items)) {
-      sale.items.forEach(item => {
-        const productId = item.productId || item.productName
-        if (!productSales[productId]) {
-          productSales[productId] = {
-            name: item.productName || productId,
-            quantity: 0,
-            revenue: 0,
-            profit: 0
+  if (Array.isArray(filteredSales)) {
+    filteredSales.forEach(sale => {
+      if (sale && sale.items && Array.isArray(sale.items)) {
+        sale.items.forEach(item => {
+          if (!item) return
+          const productId = item.productId || item.productName
+          if (productId) {
+            if (!productSales[productId]) {
+              productSales[productId] = {
+                name: item.productName || productId,
+                quantity: 0,
+                revenue: 0,
+                profit: 0
+              }
+            }
+            productSales[productId].quantity += item.quantity || 0
+            productSales[productId].revenue += item.subtotal || 0
+            productSales[productId].profit += item.profit || 0
           }
-        }
-        productSales[productId].quantity += item.quantity || 0
-        productSales[productId].revenue += item.subtotal || 0
-        productSales[productId].profit += item.profit || 0
-      })
-    }
-  })
+        })
+      }
+    })
+  }
 
   const topProducts = Object.values(productSales)
     .sort((a, b) => b.quantity - a.quantity)
@@ -119,22 +129,26 @@ function AdvancedReports() {
 
   // Sales by category
   const salesByCategory = {}
-  filteredSales.forEach(sale => {
-    if (sale.items && Array.isArray(sale.items)) {
-      sale.items.forEach(item => {
-        const product = products.find(p => p.id === item.productId || p.name === item.productName)
-        const category = product?.category || 'Uncategorized'
-        salesByCategory[category] = (salesByCategory[category] || 0) + (item.subtotal || 0)
-      })
-    }
-  })
+  if (Array.isArray(filteredSales) && Array.isArray(products)) {
+    filteredSales.forEach(sale => {
+      if (sale && sale.items && Array.isArray(sale.items)) {
+        sale.items.forEach(item => {
+          if (!item) return
+          const product = products.find(p => p && (p.id === item.productId || p.name === item.productName))
+          const category = product?.category || 'Uncategorized'
+          salesByCategory[category] = (salesByCategory[category] || 0) + (item.subtotal || 0)
+        })
+      }
+    })
+  }
 
   // Expenses by category
-  const expensesByCategory = filteredExpenses.reduce((acc, exp) => {
+  const expensesByCategory = Array.isArray(filteredExpenses) ? filteredExpenses.reduce((acc, exp) => {
+    if (!exp) return acc
     const cat = exp.category || 'Uncategorized'
     acc[cat] = (acc[cat] || 0) + (exp.amount || 0)
     return acc
-  }, {})
+  }, {}) : {}
 
   // Helper function to create bar chart
   const BarChart = ({ data, maxValue, color = 'blue' }) => {
@@ -161,11 +175,11 @@ function AdvancedReports() {
             <div className="flex-1">
               <div className="relative h-6 bg-gray-200 dark:bg-gray-700 rounded">
                 <div
-                  className={`h-6 ${colorClasses[color]} rounded flex items-center justify-end pr-2`}
-                  style={{ width: `${Math.min(100, (value / safeMaxValue) * 100)}%` }}
+                  className={`h-6 ${colorClasses[color] || colorClasses.blue} rounded flex items-center justify-end pr-2`}
+                  style={{ width: `${Math.min(100, ((value || 0) / safeMaxValue) * 100)}%` }}
                 >
                   <span className="text-xs text-white font-semibold">
-                    KSH {value.toFixed(0)}
+                    KSH {(value || 0).toFixed(0)}
                   </span>
                 </div>
               </div>
@@ -176,6 +190,8 @@ function AdvancedReports() {
     )
   }
 
+  console.log('AdvancedReports rendering', { loading, error, salesCount: sales.length, expensesCount: expenses.length, productsCount: products.length })
+  
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
@@ -213,6 +229,13 @@ function AdvancedReports() {
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           <p className="mt-4 text-gray-600 dark:text-gray-400">Loading reports...</p>
         </div>
+      ) : error ? (
+        <div className="text-center py-12">
+          <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
+            Please check the browser console (F12) for more details.
+          </p>
+        </div>
       ) : (
         <>
       {/* Key Metrics */}
@@ -220,25 +243,25 @@ function AdvancedReports() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Total Sales</h3>
           <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-            KSH {totalSales.toFixed(2)}
+            KSH {(totalSales || 0).toFixed(2)}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Gross Profit</h3>
           <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-            KSH {totalProfit.toFixed(2)}
+            KSH {(totalProfit || 0).toFixed(2)}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Total Expenses</h3>
           <p className="text-3xl font-bold text-red-600 dark:text-red-400">
-            KSH {totalExpenses.toFixed(2)}
+            KSH {(totalExpenses || 0).toFixed(2)}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Net Profit</h3>
-          <p className={`text-3xl font-bold ${netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            KSH {netProfit.toFixed(2)}
+          <p className={`text-3xl font-bold ${(netProfit || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+            KSH {(netProfit || 0).toFixed(2)}
           </p>
         </div>
       </div>
@@ -271,11 +294,11 @@ function AdvancedReports() {
                   <div className="flex-1">
                     <div className="font-medium text-gray-800 dark:text-white">{product.name}</div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">
-                      {product.quantity} sold • Profit: KSH {product.profit.toFixed(2)}
+                      {product.quantity || 0} sold • Profit: KSH {(product.profit || 0).toFixed(2)}
                     </div>
                   </div>
                   <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                    KSH {product.revenue.toFixed(2)}
+                    KSH {(product.revenue || 0).toFixed(2)}
                   </div>
                 </div>
               ))}
@@ -345,10 +368,10 @@ function AdvancedReports() {
                   return (
                     <tr key={index}>
                       <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{product.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">KSH {product.revenue.toFixed(2)}</td>
-                      <td className="px-6 py-4 text-sm text-green-600 dark:text-green-400">KSH {product.profit.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">KSH {(product.revenue || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-sm text-green-600 dark:text-green-400">KSH {(product.profit || 0).toFixed(2)}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">
-                        {margin.toFixed(1)}%
+                        {(margin || 0).toFixed(1)}%
                       </td>
                     </tr>
                   )

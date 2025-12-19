@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Expenses Endpoint</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Expenses Endpoint</h1>
+    <p>This page tests if your Google Apps Script deployment has the expenses endpoint.</p>
+    
+    <div class="test-section">
+        <h3>Step 1: Enter Your API Details</h3>
+        <label>API URL: <input type="text" id="apiUrl" style="width: 100%; padding: 5px;" 
+            placeholder="https://script.google.com/macros/s/.../exec"></label><br><br>
+        <label>API Key: <input type="text" id="apiKey" style="width: 100%; padding: 5px;" 
+            placeholder="Your API key"></label><br><br>
+        <button onclick="testEndpoint()">Test GET Expenses</button>
+        <button onclick="testCreateExpense()">Test CREATE Expense</button>
+        <div id="result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>What to Look For:</h3>
+        <ul>
+            <li><strong>✅ CORRECT:</strong> Error message includes "expenses": <code>Use ?endpoint=products|sales|users|expenses</code></li>
+            <li><strong>❌ WRONG:</strong> Error message missing "expenses": <code>Use ?endpoint=products|sales|users</code></li>
+        </ul>
+        <p><strong>If you see the wrong message, you need to redeploy your Google Apps Script!</strong></p>
+    </div>
+
+    <script>
+        async function testEndpoint() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const apiKey = document.getElementById('apiKey').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!apiUrl || !apiKey) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'Please enter both API URL and API Key';
+                resultDiv.style.display = 'block';
+                return;
+            }
+            
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Testing...';
+            resultDiv.style.display = 'block';
+            
+            try {
+                const url = `${apiUrl}?endpoint=expenses&apiKey=${apiKey}`;
+                console.log('Testing URL:', url);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                const data = await response.json();
+                console.log('Response:', data);
+                
+                if (data.error) {
+                    if (data.error.includes('expenses')) {
+                        resultDiv.className = 'result success';
+                        resultDiv.textContent = '✅ SUCCESS! Your deployment has the expenses endpoint!\n\n' +
+                            'Response: ' + JSON.stringify(data, null, 2);
+                    } else {
+                        resultDiv.className = 'result error';
+                        resultDiv.textContent = '❌ ERROR: Your deployment is OUTDATED!\n\n' +
+                            'The error message does NOT include "expenses".\n' +
+                            'You need to redeploy your Google Apps Script.\n\n' +
+                            'Response: ' + JSON.stringify(data, null, 2) + '\n\n' +
+                            'Steps:\n' +
+                            '1. Copy code from GoogleAppsScript/Code.gs\n' +
+                            '2. Paste into https://script.google.com\n' +
+                            '3. Deploy → Manage deployments → Edit → Deploy';
+                    }
+                } else if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = '✅ SUCCESS! Expenses endpoint is working!\n\n' +
+                        'Response: ' + JSON.stringify(data, null, 2);
+                } else {
+                    resultDiv.className = 'result info';
+                    resultDiv.textContent = 'Response: ' + JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Network Error:\n' + error.message + '\n\n' +
+                    'Check:\n' +
+                    '1. CORS is enabled (Who has access: Anyone)\n' +
+                    '2. API URL is correct\n' +
+                    '3. Network connectivity';
+            }
+        }
+        
+        async function testCreateExpense() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const apiKey = document.getElementById('apiKey').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!apiUrl || !apiKey) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'Please enter both API URL and API Key';
+                resultDiv.style.display = 'block';
+                return;
+            }
+            
+            resultDiv.className = 'result info';
+            resultDiv.textContent = 'Testing expense creation...';
+            resultDiv.style.display = 'block';
+            
+            try {
+                const testExpense = {
+                    description: 'Test Expense',
+                    category: 'Other',
+                    amount: 100,
+                    date: new Date().toISOString().split('T')[0],
+                    paymentMethod: 'Cash',
+                    notes: 'Test from HTML page'
+                };
+                
+                const formData = new URLSearchParams();
+                formData.append('_endpoint', 'expenses');
+                formData.append('_apiKey', apiKey);
+                Object.keys(testExpense).forEach(key => {
+                    formData.append(key, testExpense[key]);
+                });
+                
+                const url = `${apiUrl}?endpoint=expenses&apiKey=${apiKey}`;
+                console.log('Creating expense:', testExpense);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: formData.toString()
+                });
+                
+                const data = await response.json();
+                console.log('Response:', data);
+                
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = '✅ SUCCESS! Expense created!\n\n' +
+                        'Response: ' + JSON.stringify(data, null, 2);
+                } else if (data.error && data.error.includes('expenses')) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = '✅ Endpoint exists, but there was an error:\n\n' +
+                        JSON.stringify(data, null, 2);
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = '❌ ERROR: ' + (data.error || 'Unknown error') + '\n\n' +
+                        'Full response: ' + JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Network Error:\n' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
+

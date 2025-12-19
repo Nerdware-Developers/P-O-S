@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { salesAPI } from '../utils/api'
+import { salesAPI, summaryAPI } from '../utils/api'
 
 function SalesReports() {
   const [sales, setSales] = useState([])
@@ -16,7 +16,69 @@ function SalesReports() {
 
   useEffect(() => {
     loadSales()
+    loadSummary()
+    // Refresh summary every 5 seconds for real-time updates
+    const interval = setInterval(loadSummary, 5000)
+    return () => clearInterval(interval)
   }, [filter])
+
+  const loadSummary = async () => {
+    try {
+      console.log('Loading summary...')
+      const data = await summaryAPI.get()
+      console.log('Summary API response:', data)
+      if (data.success) {
+        setReportData(prev => ({
+          ...prev,
+          dailyTotal: data.dailySales || 0,
+          dailyProfit: data.dailyProfit || 0,
+          monthlyTotal: data.monthlySales || 0,
+          monthlyProfit: data.monthlyProfit || 0,
+        }))
+        console.log('Updated report data:', {
+          dailyTotal: data.dailySales || 0,
+          dailyProfit: data.dailyProfit || 0,
+          monthlyTotal: data.monthlySales || 0,
+          monthlyProfit: data.monthlyProfit || 0,
+        })
+      } else {
+        console.error('Summary API returned success: false', data)
+      }
+    } catch (err) {
+      console.error('Summary loading error:', err)
+      // Calculate from sales data as fallback
+      if (sales.length > 0) {
+        const today = new Date().toISOString().split('T')[0]
+        const now = new Date()
+        const currentMonth = now.getMonth() + 1
+        const currentYear = now.getFullYear()
+        
+        const dailySales = sales.filter(sale => {
+          if (!sale || !sale.timestamp) return false
+          const saleDate = new Date(sale.timestamp).toISOString().split('T')[0]
+          return saleDate === today
+        })
+        const dailyTotal = dailySales.reduce((sum, sale) => sum + (sale?.total || sale?.subtotal || 0), 0)
+        const dailyProfit = dailySales.reduce((sum, sale) => sum + (sale?.profit || 0), 0)
+        
+        const monthlySales = sales.filter(sale => {
+          if (!sale || !sale.timestamp) return false
+          const saleDate = new Date(sale.timestamp)
+          return saleDate.getMonth() + 1 === currentMonth && saleDate.getFullYear() === currentYear
+        })
+        const monthlyTotal = monthlySales.reduce((sum, sale) => sum + (sale?.total || sale?.subtotal || 0), 0)
+        const monthlyProfit = monthlySales.reduce((sum, sale) => sum + (sale?.profit || 0), 0)
+        
+        setReportData(prev => ({
+          ...prev,
+          dailyTotal,
+          dailyProfit,
+          monthlyTotal,
+          monthlyProfit,
+        }))
+      }
+    }
+  }
 
   const loadSales = async () => {
     try {
@@ -49,51 +111,84 @@ function SalesReports() {
   }
 
   const calculateReportData = (salesData) => {
-    const today = new Date().toISOString().split('T')[0]
-    const now = new Date()
-    const currentMonth = now.getMonth() + 1
-    const currentYear = now.getFullYear()
+    if (!Array.isArray(salesData)) {
+      setReportData({
+        dailyTotal: 0,
+        dailyProfit: 0,
+        monthlyTotal: 0,
+        monthlyProfit: 0,
+        topSelling: [],
+      })
+      return
+    }
 
-    // Calculate daily total and profit
-    const dailySales = salesData.filter(sale => {
-      const saleDate = new Date(sale.timestamp).toISOString().split('T')[0]
-      return saleDate === today
-    })
-    const dailyTotal = dailySales.reduce((sum, sale) => sum + (sale.total || 0), 0)
-    const dailyProfit = dailySales.reduce((sum, sale) => sum + (sale.profit || 0), 0)
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const now = new Date()
+      const currentMonth = now.getMonth() + 1
+      const currentYear = now.getFullYear()
 
-    // Calculate monthly total and profit
-    const monthlySales = salesData.filter(sale => {
-      const saleDate = new Date(sale.timestamp)
-      return saleDate.getMonth() + 1 === currentMonth && saleDate.getFullYear() === currentYear
-    })
-    const monthlyTotal = monthlySales.reduce((sum, sale) => sum + (sale.total || 0), 0)
-    const monthlyProfit = monthlySales.reduce((sum, sale) => sum + (sale.profit || 0), 0)
+      // Calculate daily total and profit
+      const dailySales = salesData.filter(sale => {
+        if (!sale || !sale.timestamp) return false
+        try {
+          const saleDate = new Date(sale.timestamp).toISOString().split('T')[0]
+          return saleDate === today
+        } catch (e) {
+          return false
+        }
+      })
+      const dailyTotal = dailySales.reduce((sum, sale) => sum + (sale?.total || 0), 0)
+      const dailyProfit = dailySales.reduce((sum, sale) => sum + (sale?.profit || 0), 0)
 
-    // Calculate top selling items
-    const itemCounts = {}
-    salesData.forEach(sale => {
-      if (sale.items && Array.isArray(sale.items)) {
-        sale.items.forEach(item => {
-          const key = item.productName || item.name
-          if (key) {
-            itemCounts[key] = (itemCounts[key] || 0) + item.quantity
-          }
-        })
-      }
-    })
-    const topSelling = Object.entries(itemCounts)
-      .map(([name, quantity]) => ({ name, quantity }))
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 10)
+      // Calculate monthly total and profit
+      const monthlySales = salesData.filter(sale => {
+        if (!sale || !sale.timestamp) return false
+        try {
+          const saleDate = new Date(sale.timestamp)
+          return saleDate.getMonth() + 1 === currentMonth && saleDate.getFullYear() === currentYear
+        } catch (e) {
+          return false
+        }
+      })
+      const monthlyTotal = monthlySales.reduce((sum, sale) => sum + (sale?.total || 0), 0)
+      const monthlyProfit = monthlySales.reduce((sum, sale) => sum + (sale?.profit || 0), 0)
 
-    setReportData({
-      dailyTotal,
-      dailyProfit,
-      monthlyTotal,
-      monthlyProfit,
-      topSelling,
-    })
+      // Calculate top selling items
+      const itemCounts = {}
+      salesData.forEach(sale => {
+        if (sale && sale.items && Array.isArray(sale.items)) {
+          sale.items.forEach(item => {
+            if (!item) return
+            const key = item.productName || item.name
+            if (key) {
+              itemCounts[key] = (itemCounts[key] || 0) + (item.quantity || 0)
+            }
+          })
+        }
+      })
+      const topSelling = Object.entries(itemCounts)
+        .map(([name, quantity]) => ({ name, quantity }))
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 10)
+
+      setReportData({
+        dailyTotal,
+        dailyProfit,
+        monthlyTotal,
+        monthlyProfit,
+        topSelling,
+      })
+    } catch (error) {
+      console.error('Error calculating report data:', error)
+      setReportData({
+        dailyTotal: 0,
+        dailyProfit: 0,
+        monthlyTotal: 0,
+        monthlyProfit: 0,
+        topSelling: [],
+      })
+    }
   }
 
   const exportToCSV = () => {
@@ -102,15 +197,15 @@ function SalesReports() {
       return
     }
 
-    const headers = ['Date', 'Items', 'Subtotal', 'Tax', 'Total']
+      const headers = ['Date', 'Items', 'Subtotal', 'Profit', 'Total']
     const rows = sales.map(sale => {
       const date = new Date(sale.timestamp).toLocaleString()
-      const items = sale.items?.map(i => `${i.productName} (${i.quantity})`).join('; ') || 'N/A'
+      const items = Array.isArray(sale.items) ? sale.items.map(i => `${i.productName || i.name} (${i.quantity || 0})`).join('; ') : (sale.items || 'N/A')
       return [
         date,
         items,
         sale.subtotal?.toFixed(2) || '0.00',
-        sale.tax?.toFixed(2) || '0.00',
+        sale.profit?.toFixed(2) || '0.00',
         sale.total?.toFixed(2) || '0.00',
       ]
     })
@@ -129,6 +224,13 @@ function SalesReports() {
     window.URL.revokeObjectURL(url)
   }
 
+  console.log('SalesReports rendering', { loading, error, salesCount: sales.length, reportData })
+  
+  // Always render at least the header
+  if (!sales && !loading && !error) {
+    console.warn('SalesReports: No sales data, loading, or error state')
+  }
+  
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
@@ -158,40 +260,43 @@ function SalesReports() {
           <div className="mt-2 text-sm">
             <p>Check browser console (F12) for detailed error messages.</p>
             <p className="mt-1">If the error persists, verify Google Apps Script is deployed correctly.</p>
+            <p className="mt-1"><strong>Most likely cause:</strong> Google Apps Script needs to be redeployed with the updated schema (profit field in sales).</p>
+            <p className="mt-1"><strong>Fix:</strong> Go to script.google.com → Your project → Deploy → Manage deployments → Edit → Deploy</p>
           </div>
         </div>
       )}
 
-      {!error && (
-        <div className="mb-4 p-4 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-300 rounded">
-          {error}
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading sales data...</p>
         </div>
-      )}
-
+      ) : (
+        <>
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Daily Sales</h3>
           <p className="text-3xl font-bold text-gray-800 dark:text-white">
-            KSH {reportData.dailyTotal.toFixed(2)}
+            KSH {(reportData.dailyTotal || 0).toFixed(2)}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Daily Profit</h3>
           <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-            KSH {reportData.dailyProfit.toFixed(2)}
+            KSH {(reportData.dailyProfit || 0).toFixed(2)}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Monthly Sales</h3>
           <p className="text-3xl font-bold text-gray-800 dark:text-white">
-            KSH {reportData.monthlyTotal.toFixed(2)}
+            KSH {(reportData.monthlyTotal || 0).toFixed(2)}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Monthly Profit</h3>
           <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-            KSH {reportData.monthlyProfit.toFixed(2)}
+            KSH {(reportData.monthlyProfit || 0).toFixed(2)}
           </p>
         </div>
       </div>
@@ -227,7 +332,7 @@ function SalesReports() {
                   Subtotal
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Tax
+                  Profit
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Total
@@ -254,13 +359,13 @@ function SalesReports() {
                       {new Date(sale.timestamp).toLocaleString()}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {sale.items?.map(i => `${i.productName} (${i.quantity})`).join(', ') || 'N/A'}
+                      {Array.isArray(sale.items) ? sale.items.map(i => `${i.productName || i.name} (${i.quantity || 0})`).join(', ') : (sale.items || 'N/A')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                       KSH {sale.subtotal?.toFixed(2) || '0.00'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      KSH {sale.tax?.toFixed(2) || '0.00'}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600 dark:text-green-400">
+                      KSH {sale.profit?.toFixed(2) || '0.00'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                       KSH {sale.total?.toFixed(2) || '0.00'}
@@ -272,6 +377,8 @@ function SalesReports() {
           </table>
         </div>
       </div>
+        </>
+      )}
     </div>
   )
 }
