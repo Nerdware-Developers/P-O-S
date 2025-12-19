@@ -92,10 +92,10 @@ function ProductDisplay() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Product Catalog</h2>
-        <p className="text-gray-600 dark:text-gray-400">Browse our available products</p>
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
+      <div className="mb-4 sm:mb-6">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white mb-1 sm:mb-2">Product Catalog</h2>
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Browse our available products</p>
       </div>
 
       {error && (
@@ -105,21 +105,21 @@ function ProductDisplay() {
       )}
 
       {/* Search and Filter */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
+      <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-3 sm:gap-4">
         <div className="flex-1">
           <input
             type="text"
             placeholder="Search products..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
           />
         </div>
         <div className="sm:w-48">
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
           >
             {categories.map(cat => (
               <option key={cat} value={cat}>
@@ -143,7 +143,7 @@ function ProductDisplay() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           {filteredProducts.map((product) => (
             <div
               key={product.id}
@@ -169,7 +169,7 @@ function ProductDisplay() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
-                {product.stock < 10 && (
+                {product.stock < 5 && (
                   <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs font-semibold px-2 py-1 rounded">
                     Low Stock
                   </div>
@@ -177,41 +177,41 @@ function ProductDisplay() {
               </div>
 
               {/* Product Info */}
-              <div className="p-4">
-                <div className="mb-2">
+              <div className="p-3 sm:p-4">
+                <div className="mb-1.5 sm:mb-2">
                   {product.category && (
                     <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
                       {product.category}
                     </span>
                   )}
                 </div>
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2 line-clamp-2">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-white mb-2 line-clamp-2">
                   {product.name}
                 </h3>
                 {(product.size || product.color) && (
-                  <div className="flex gap-2 mb-2">
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-2">
                     {product.size && (
-                      <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded">
+                      <span className="px-2 py-0.5 sm:py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded">
                         Size: {product.size}
                       </span>
                     )}
                     {product.color && (
-                      <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded">
+                      <span className="px-2 py-0.5 sm:py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded">
                         Color: {product.color}
                       </span>
                     )}
                   </div>
                 )}
                 {product.description && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-2 sm:mb-3 line-clamp-2">
                     {product.description}
                   </p>
                 )}
                 
                 {/* Price and Stock */}
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-2 sm:mb-3">
                   <div>
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    <div className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400">
                       KSH {product.price?.toFixed(2) || '0.00'}
                     </div>
                     {(parseFloat(product.buyingPrice) || 0) > 0 && (
@@ -223,9 +223,9 @@ function ProductDisplay() {
                 </div>
 
                 {/* Stock Info and Sell Button */}
-                <div className="flex items-center justify-between text-sm mt-3">
+                <div className="flex items-center justify-between text-xs sm:text-sm mt-2 sm:mt-3 mb-2">
                   <span className={`font-medium ${
-                    product.stock < 10 
+                    product.stock < 5 
                       ? 'text-red-600 dark:text-red-400' 
                       : 'text-green-600 dark:text-green-400'
                   }`}>
@@ -239,7 +239,7 @@ function ProductDisplay() {
                 {product.stock > 0 && (
                   <button
                     onClick={() => setSellingProduct(product)}
-                    className="w-full mt-3 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
+                    className="w-full mt-2 sm:mt-3 px-3 sm:px-4 py-2 text-sm sm:text-base bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
                   >
                     Sell Product
                   </button>
@@ -252,12 +252,12 @@ function ProductDisplay() {
 
       {/* Sell Product Modal */}
       {sellingProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-4 sm:p-6 my-4 max-h-[95vh] overflow-y-auto">
+            <h3 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">
               Sell {sellingProduct.name}
             </h3>
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Quantity (Available: {sellingProduct.stock} {sellingProduct.unitType || 'pcs'})
@@ -268,10 +268,10 @@ function ProductDisplay() {
                   max={sellingProduct.stock}
                   value={quantity}
                   onChange={(e) => setQuantity(Math.max(1, Math.min(sellingProduct.stock, parseInt(e.target.value) || 1)))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 />
               </div>
-              <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg space-y-2">
+              <div className="bg-gray-50 dark:bg-gray-700 p-3 sm:p-4 rounded-lg space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-700 dark:text-gray-300">Price per unit:</span>
                   <span className="font-semibold">KSH {sellingProduct.price?.toFixed(2)}</span>
@@ -303,21 +303,21 @@ function ProductDisplay() {
                   return null;
                 })()}
               </div>
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 sm:space-x-3 pt-3 sm:pt-4">
                 <button
                   type="button"
                   onClick={() => {
                     setSellingProduct(null)
                     setQuantity(1)
                   }}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                  className="w-full sm:w-auto px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSellProduct}
                   disabled={selling}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50"
+                  className="w-full sm:w-auto px-4 py-2 text-sm sm:text-base bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50"
                 >
                   {selling ? 'Processing...' : 'Confirm Sale'}
                 </button>
@@ -329,7 +329,7 @@ function ProductDisplay() {
 
       {/* Results Count */}
       {!loading && filteredProducts.length > 0 && (
-        <div className="mt-6 text-center text-gray-600 dark:text-gray-400">
+        <div className="mt-4 sm:mt-6 text-center text-sm sm:text-base text-gray-600 dark:text-gray-400">
           Showing {filteredProducts.length} of {products.filter(p => p.stock > 0).length} available products
         </div>
       )}
