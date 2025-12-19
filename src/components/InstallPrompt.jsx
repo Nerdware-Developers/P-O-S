@@ -85,7 +85,36 @@ function InstallPrompt() {
     alert(instructions)
   }
 
-  if (isInstalled || !showPrompt) {
+  // Always show manual install option on mobile
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  
+  if (isInstalled) {
+    return null
+  }
+
+  // Show manual install button if no automatic prompt
+  if (!showPrompt && isMobile) {
+    return (
+      <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 z-50">
+        <div className="bg-blue-600 dark:bg-blue-700 rounded-lg shadow-lg p-3 sm:p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-white text-sm font-medium mb-1">Install App</p>
+              <p className="text-blue-100 text-xs">Tap for installation instructions</p>
+            </div>
+            <button
+              onClick={showManualInstructions}
+              className="ml-3 px-4 py-2 bg-white text-blue-600 font-semibold rounded-lg text-sm hover:bg-blue-50 transition-colors"
+            >
+              Install
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!showPrompt) {
     return null
   }
 
