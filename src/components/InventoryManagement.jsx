@@ -7,6 +7,8 @@ function InventoryManagement() {
   const [error, setError] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
   const [formData, setFormData] = useState({
     name: '',
     price: '',
@@ -133,7 +135,7 @@ function InventoryManagement() {
     }
   }
 
-  const lowStockProducts = products.filter(p => p.stock < 10)
+  const lowStockProducts = products.filter(p => p.stock < 5)
 
   // Get unique categories from existing products
   const existingCategories = [...new Set(products
@@ -141,13 +143,21 @@ function InventoryManagement() {
     .filter(cat => cat && cat.trim() !== '')
   )].sort()
 
+  // Filter products based on search and category
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory
+    return matchesSearch && matchesCategory
+  })
+
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Inventory Management</h2>
+    <div className="max-w-7xl mx-auto px-2 sm:px-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">Inventory Management</h2>
         <button
           onClick={() => handleOpenModal()}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+          className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors text-sm sm:text-base"
         >
           + Add Product
         </button>
@@ -161,100 +171,206 @@ function InventoryManagement() {
 
       {lowStockProducts.length > 0 && (
         <div className="mb-4 p-4 bg-yellow-100 dark:bg-yellow-900 border border-yellow-400 text-yellow-700 dark:text-yellow-300 rounded">
-          <strong>Low Stock Warning:</strong> {lowStockProducts.length} product(s) have stock below 10 units.
+          <strong>Low Stock Warning:</strong> {lowStockProducts.length} product(s) have stock below 5 units.
         </div>
       )}
+
+      {/* Search and Filter */}
+      <div className="mb-4 space-y-4 md:space-y-0 md:flex md:gap-4">
+        <div className="flex-1">
+          <input
+            type="text"
+            placeholder="Search products by name or description..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          />
+        </div>
+        <div className="md:w-48">
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          >
+            <option value="all">All Categories</option>
+            {existingCategories.map((category, index) => (
+              <option key={index} value={category}>{category}</option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {loading ? (
         <div className="text-center py-8">Loading products...</div>
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Selling Price
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Buying Price
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Unit
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Variants
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Category
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {products.map((product) => (
-                  <tr
-                    key={product.id}
-                    className={product.stock < 10 ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                      {product.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      KSH {product.price?.toFixed(2) || '0.00'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      KSH {(parseFloat(product.buyingPrice) || 0).toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      <span className={product.stock < 10 ? 'text-red-600 dark:text-red-400 font-semibold' : ''}>
-                        {product.stock} {product.unitType || 'pcs'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {product.size || product.color ? (
-                        <div className="space-y-1">
-                          {product.size && <div className="text-xs">Size: <span className="font-medium">{product.size}</span></div>}
-                          {product.color && <div className="text-xs">Color: <span className="font-medium">{product.color}</span></div>}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">N/A</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {product.category || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+        <>
+          {/* Mobile Card View */}
+          <div className="block md:hidden space-y-4">
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                {loading ? 'Loading products...' : 'No products found matching your search.'}
+              </div>
+            ) : (
+              filteredProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className={`bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 ${
+                    product.stock < 5 ? 'border-2 border-yellow-400' : ''
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{product.name}</h3>
+                    <div className="flex gap-2">
                       <button
                         onClick={() => handleOpenModal(product)}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 mr-4"
+                        className="text-blue-600 dark:text-blue-400 text-sm px-2 py-1"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(product.id)}
-                        className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
+                        className="text-red-600 dark:text-red-400 text-sm px-2 py-1"
                       >
                         Delete
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">Selling:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">
+                        KSH {product.price?.toFixed(2) || '0.00'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">Buying:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">
+                        KSH {(parseFloat(product.buyingPrice) || 0).toFixed(2)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">Stock:</span>
+                      <span className={`ml-2 font-medium ${product.stock < 5 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                        {product.stock} {product.unitType || 'pcs'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">Category:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">
+                        {product.category || 'N/A'}
+                      </span>
+                    </div>
+                    {(product.size || product.color) && (
+                      <div className="col-span-2">
+                        <span className="text-gray-500 dark:text-gray-400">Variants:</span>
+                        <span className="ml-2 text-gray-900 dark:text-white">
+                          {[product.size, product.color].filter(Boolean).join(', ') || 'N/A'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-        </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Selling Price
+                    </th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Buying Price
+                    </th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Unit
+                    </th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Variants
+                    </th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th className="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {filteredProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                        {loading ? 'Loading products...' : 'No products found matching your search.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredProducts.map((product) => (
+                    <tr
+                      key={product.id}
+                      className={product.stock < 5 ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}
+                    >
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {product.name}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        KSH {product.price?.toFixed(2) || '0.00'}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        KSH {(parseFloat(product.buyingPrice) || 0).toFixed(2)}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        <span className={product.stock < 5 ? 'text-red-600 dark:text-red-400 font-semibold' : ''}>
+                          {product.stock} {product.unitType || 'pcs'}
+                        </span>
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                        {product.size || product.color ? (
+                          <div className="space-y-1">
+                            {product.size && <div className="text-xs">Size: <span className="font-medium">{product.size}</span></div>}
+                            {product.color && <div className="text-xs">Color: <span className="font-medium">{product.color}</span></div>}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">N/A</span>
+                        )}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {product.category || 'N/A'}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => handleOpenModal(product)}
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 mr-4"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product.id)}
+                          className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full my-8 max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full my-4 sm:my-8 max-h-[95vh] sm:max-h-[90vh] flex flex-col">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-xl font-bold text-gray-800 dark:text-white">
                 {editingProduct ? 'Edit Product' : 'Add Product'}

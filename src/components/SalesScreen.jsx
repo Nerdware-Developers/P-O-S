@@ -131,8 +131,8 @@ function SalesScreen() {
   )
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Sales</h2>
+    <div className="max-w-7xl mx-auto px-2 sm:px-4">
+      <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white mb-4 sm:mb-6">Sales</h2>
 
       {error && (
         <div className="mb-4 p-4 bg-red-100 dark:bg-red-900 border border-red-400 text-red-700 dark:text-red-300 rounded">
@@ -140,38 +140,38 @@ function SalesScreen() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Products Section */}
-        <div className="lg:col-span-2">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+        <div className="lg:col-span-2 order-2 lg:order-1">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4">
             <div className="mb-4">
               <input
                 type="text"
                 placeholder="Search products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               />
             </div>
 
             {loading ? (
-              <div className="text-center py-8">Loading products...</div>
+              <div className="text-center py-8 text-sm sm:text-base">Loading products...</div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 max-h-[500px] sm:max-h-[600px] overflow-y-auto">
                 {filteredProducts.map((product) => (
                   <div
                     key={product.id}
-                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                    className={`p-2 sm:p-4 border rounded-lg cursor-pointer transition-all ${
                       product.stock > 0
                         ? 'border-gray-300 dark:border-gray-600 hover:border-blue-500 hover:shadow-md bg-white dark:bg-gray-700'
                         : 'border-red-300 dark:border-red-600 opacity-50 bg-gray-100 dark:bg-gray-800'
                     }`}
                     onClick={() => product.stock > 0 && addToCart(product)}
                   >
-                    <div className="text-sm font-semibold text-gray-800 dark:text-white mb-1">
+                    <div className="text-xs sm:text-sm font-semibold text-gray-800 dark:text-white mb-1 line-clamp-2">
                       {product.name}
                     </div>
-                    <div className="text-lg font-bold text-blue-600 dark:text-blue-400 mb-1">
+                    <div className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400 mb-1">
                       KSH {product.price.toFixed(2)}
                     </div>
                     <div className={`text-xs ${product.stock > 0 ? 'text-gray-600 dark:text-gray-400' : 'text-red-600 dark:text-red-400'}`}>
@@ -185,9 +185,9 @@ function SalesScreen() {
         </div>
 
         {/* Cart Section */}
-        <div className="lg:col-span-1">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sticky top-20">
-            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Cart</h3>
+        <div className="lg:col-span-1 order-1 lg:order-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 sticky top-16 sm:top-20">
+            <h3 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">Cart</h3>
             
             {cart.length === 0 ? (
               <div className="text-gray-500 dark:text-gray-400 text-center py-8">

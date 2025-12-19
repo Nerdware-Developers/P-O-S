@@ -232,14 +232,14 @@ function SalesReports() {
   }
   
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Sales Reports</h2>
-        <div className="flex space-x-3">
+    <div className="max-w-7xl mx-auto px-2 sm:px-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">Sales Reports</h2>
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+            className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
           >
             <option value="all">All Sales</option>
             <option value="today">Today</option>
@@ -247,7 +247,7 @@ function SalesReports() {
           </select>
           <button
             onClick={exportToCSV}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
+            className="px-3 sm:px-4 py-2 text-sm sm:text-base bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
           >
             Export CSV
           </button>
@@ -274,28 +274,28 @@ function SalesReports() {
       ) : (
         <>
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Daily Sales</h3>
-          <p className="text-3xl font-bold text-gray-800 dark:text-white">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">Daily Sales</h3>
+          <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-800 dark:text-white">
             KSH {(reportData.dailyTotal || 0).toFixed(2)}
           </p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Daily Profit</h3>
-          <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">Daily Profit</h3>
+          <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-green-600 dark:text-green-400">
             KSH {(reportData.dailyProfit || 0).toFixed(2)}
           </p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Monthly Sales</h3>
-          <p className="text-3xl font-bold text-gray-800 dark:text-white">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">Monthly Sales</h3>
+          <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-800 dark:text-white">
             KSH {(reportData.monthlyTotal || 0).toFixed(2)}
           </p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Monthly Profit</h3>
-          <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">Monthly Profit</h3>
+          <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-green-600 dark:text-green-400">
             KSH {(reportData.monthlyProfit || 0).toFixed(2)}
           </p>
         </div>
@@ -342,32 +342,32 @@ function SalesReports() {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan="5" className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                     Loading sales data...
                   </td>
                 </tr>
               ) : sales.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan="5" className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                     No sales data available
                   </td>
                 </tr>
               ) : (
                 sales.map((sale, index) => (
                   <tr key={sale.id || index}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                       {new Date(sale.timestamp).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                       {Array.isArray(sale.items) ? sale.items.map(i => `${i.productName || i.name} (${i.quantity || 0})`).join(', ') : (sale.items || 'N/A')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                       KSH {sale.subtotal?.toFixed(2) || '0.00'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600 dark:text-green-400">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-green-600 dark:text-green-400">
                       KSH {sale.profit?.toFixed(2) || '0.00'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                       KSH {sale.total?.toFixed(2) || '0.00'}
                     </td>
                   </tr>
