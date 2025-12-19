@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { productsAPI, salesAPI } from '../utils/api'
+import { getCurrentUser } from '../utils/auth'
 
 function ProductDisplay() {
   const [products, setProducts] = useState([])
@@ -55,6 +56,7 @@ function ProductDisplay() {
       const itemProfit = buyingPrice > 0 ? ((parseFloat(sellingProduct.price) || 0) - buyingPrice) * quantity : 0
 
       // Create sale
+      const currentUser = getCurrentUser()
       const sale = {
         items: [{
           productId: sellingProduct.id,
@@ -68,6 +70,8 @@ function ProductDisplay() {
         subtotal: itemSubtotal,
         total: itemTotal,
         profit: itemProfit,
+        userId: currentUser?.id || '',
+        userName: currentUser?.name || currentUser?.email || 'Unknown',
         timestamp: new Date().toISOString(),
       }
 

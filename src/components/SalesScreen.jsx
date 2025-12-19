@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { productsAPI, salesAPI } from '../utils/api'
+import { getCurrentUser } from '../utils/auth'
 
 function SalesScreen() {
   const [products, setProducts] = useState([])
@@ -81,6 +82,7 @@ function SalesScreen() {
         return sum + 0 // No profit if buying price is not set
       }, 0)
 
+      const currentUser = getCurrentUser()
       const sale = {
         items: cart.map(item => {
           const buyingPrice = parseFloat(item.buyingPrice) || 0
@@ -98,6 +100,8 @@ function SalesScreen() {
         subtotal: calculateSubtotal(),
         total: calculateTotal(),
         profit: totalProfit,
+        userId: currentUser?.id || '',
+        userName: currentUser?.name || currentUser?.email || 'Unknown',
         timestamp: new Date().toISOString(),
       }
 

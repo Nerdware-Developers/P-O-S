@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { salesAPI, summaryAPI } from '../utils/api'
+import { salesAPI, summaryAPI, usersAPI } from '../utils/api'
 
 function SalesReports() {
   const [sales, setSales] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [filter, setFilter] = useState('all') // all, today, month
+  const [selectedUserId, setSelectedUserId] = useState('all') // all or specific user id
+  const [users, setUsers] = useState([])
   const [reportData, setReportData] = useState({
     dailyTotal: 0,
     dailyProfit: 0,
@@ -15,12 +17,24 @@ function SalesReports() {
   })
 
   useEffect(() => {
+    loadUsers()
     loadSales()
     loadSummary()
     // Refresh summary every 5 seconds for real-time updates
     const interval = setInterval(loadSummary, 5000)
     return () => clearInterval(interval)
-  }, [filter])
+  }, [filter, selectedUserId])
+
+  const loadUsers = async () => {
+    try {
+      const data = await usersAPI.getAll()
+      const usersList = data.users || data || []
+      setUsers(usersList)
+    } catch (err) {
+      console.error('Failed to load users:', err)
+      setUsers([])
+    }
+  }
 
   const loadSummary = async () => {
     try {
@@ -92,6 +106,11 @@ function SalesReports() {
         const now = new Date()
         filters.month = now.getMonth() + 1
         filters.year = now.getFullYear()
+      }
+      
+      // Add user filter if a specific user is selected
+      if (selectedUserId && selectedUserId !== 'all') {
+        filters.userId = selectedUserId
       }
       
       console.log('Loading sales with filters:', filters)
@@ -197,12 +216,13 @@ function SalesReports() {
       return
     }
 
-      const headers = ['Date', 'Items', 'Subtotal', 'Profit', 'Total']
+      const headers = ['Date', 'User', 'Items', 'Subtotal', 'Profit', 'Total']
     const rows = sales.map(sale => {
       const date = new Date(sale.timestamp).toLocaleString()
       const items = Array.isArray(sale.items) ? sale.items.map(i => `${i.productName || i.name} (${i.quantity || 0})`).join('; ') : (sale.items || 'N/A')
       return [
         date,
+        sale.userName || sale.userId || 'Unknown',
         items,
         sale.subtotal?.toFixed(2) || '0.00',
         sale.profit?.toFixed(2) || '0.00',
@@ -244,6 +264,18 @@ function SalesReports() {
             <option value="all">All Sales</option>
             <option value="today">Today</option>
             <option value="month">This Month</option>
+          </select>
+          <select
+            value={selectedUserId}
+            onChange={(e) => setSelectedUserId(e.target.value)}
+            className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+          >
+            <option value="all">All Users</option>
+            {users.map(user => (
+              <option key={user.id} value={user.id}>
+                {user.name || user.email}
+              </option>
+            ))}
           </select>
           <button
             onClick={exportToCSV}
@@ -326,6 +358,9 @@ function SalesReports() {
                   Date
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  User
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Items
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -342,13 +377,13 @@ function SalesReports() {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colSpan="6" className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                     Loading sales data...
                   </td>
                 </tr>
               ) : sales.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colSpan="6" className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                     No sales data available
                   </td>
                 </tr>
@@ -357,6 +392,9 @@ function SalesReports() {
                   <tr key={sale.id || index}>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                       {new Date(sale.timestamp).toLocaleString()}
+                    </td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                      {sale.userName || sale.userId || 'Unknown'}
                     </td>
                     <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                       {Array.isArray(sale.items) ? sale.items.map(i => `${i.productName || i.name} (${i.quantity || 0})`).join(', ') : (sale.items || 'N/A')}

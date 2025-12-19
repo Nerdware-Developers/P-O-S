@@ -49,7 +49,7 @@ function getSheet(sheetName) {
       if (sheetName === SHEET_NAMES.PRODUCTS) {
         sheet.appendRow(['id', 'name', 'price', 'buyingPrice', 'stock', 'unitType', 'category', 'description', 'image', 'size', 'color', 'createdAt', 'updatedAt']);
       } else if (sheetName === SHEET_NAMES.SALES) {
-        sheet.appendRow(['id', 'items', 'subtotal', 'total', 'profit', 'timestamp', 'createdAt']);
+        sheet.appendRow(['id', 'items', 'subtotal', 'total', 'profit', 'userId', 'userName', 'timestamp', 'createdAt']);
       } else if (sheetName === SHEET_NAMES.SUMMARY) {
         sheet.appendRow(['date', 'dailySales', 'dailyProfit', 'monthlySales', 'monthlyProfit', 'lastUpdated']);
       } else if (sheetName === SHEET_NAMES.USERS) {
@@ -317,6 +317,16 @@ function getSales(filters) {
     sheet.getRange(1, headers.length).setValue('profit');
   }
   
+  // Ensure userId and userName columns exist
+  if (!headers.includes('userId')) {
+    headers.push('userId');
+    sheet.getRange(1, headers.length).setValue('userId');
+  }
+  if (!headers.includes('userName')) {
+    headers.push('userName');
+    sheet.getRange(1, headers.length).setValue('userName');
+  }
+  
   let sales = data.map(row => {
     const sale = rowToObject(row, headers);
     // Items are stored as JSON string - try to parse it
@@ -382,12 +392,27 @@ function getSales(filters) {
     });
   }
   
+  // Filter by userId if provided
+  if (filters.userId) {
+    sales = sales.filter(sale => sale.userId === filters.userId);
+  }
+  
   return { success: true, sales };
 }
 
 function createSale(saleData) {
   const sheet = getSheet(SHEET_NAMES.SALES);
   const headers = getHeaders(sheet);
+  
+  // Ensure userId and userName columns exist
+  if (!headers.includes('userId')) {
+    headers.push('userId');
+    sheet.getRange(1, headers.length).setValue('userId');
+  }
+  if (!headers.includes('userName')) {
+    headers.push('userName');
+    sheet.getRange(1, headers.length).setValue('userName');
+  }
   
   // Parse items if it's a string (from form data)
   let items = saleData.items || [];
@@ -425,6 +450,8 @@ function createSale(saleData) {
     subtotal: subtotal,
     total: total,
     profit: profit,
+    userId: saleData.userId || '',
+    userName: saleData.userName || '',
     timestamp: saleData.timestamp || new Date().toISOString(),
     createdAt: new Date().toISOString()
   };
