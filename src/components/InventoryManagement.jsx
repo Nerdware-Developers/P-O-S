@@ -204,8 +204,8 @@ function InventoryManagement() {
         <div className="text-center py-8">Loading products...</div>
       ) : (
         <>
-          {/* Mobile Card View */}
-          <div className="block md:hidden space-y-4">
+          {/* Mobile Card View - Show on mobile and tablet, hide on large screens */}
+          <div className="block lg:hidden space-y-3">
             {filteredProducts.length === 0 ? (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 {loading ? 'Loading products...' : 'No products found matching your search.'}
@@ -214,56 +214,56 @@ function InventoryManagement() {
               filteredProducts.map((product) => (
                 <div
                   key={product.id}
-                  className={`bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 ${
-                    product.stock < 5 ? 'border-2 border-yellow-400' : ''
+                  className={`bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 ${
+                    product.stock < 5 ? 'border-2 border-yellow-400' : 'border border-gray-200 dark:border-gray-700'
                   }`}
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{product.name}</h3>
-                    <div className="flex gap-2">
+                  <div className="flex justify-between items-start mb-3">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white flex-1 pr-2">{product.name}</h3>
+                    <div className="flex gap-1 flex-shrink-0">
                       <button
                         onClick={() => handleOpenModal(product)}
-                        className="text-blue-600 dark:text-blue-400 text-sm px-2 py-1"
+                        className="text-blue-600 dark:text-blue-400 text-xs sm:text-sm px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(product.id)}
-                        className="text-red-600 dark:text-red-400 text-sm px-2 py-1"
+                        className="text-red-600 dark:text-red-400 text-xs sm:text-sm px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
                       >
                         Delete
                       </button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-gray-500 dark:text-gray-400">Selling:</span>
-                      <span className="ml-2 font-medium text-gray-900 dark:text-white">
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-gray-400">Selling Price:</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
                         KSH {product.price?.toFixed(2) || '0.00'}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-gray-500 dark:text-gray-400">Buying:</span>
-                      <span className="ml-2 font-medium text-gray-900 dark:text-white">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 dark:text-gray-400">Buying Price:</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
                         KSH {(parseFloat(product.buyingPrice) || 0).toFixed(2)}
                       </span>
                     </div>
-                    <div>
+                    <div className="flex justify-between">
                       <span className="text-gray-500 dark:text-gray-400">Stock:</span>
-                      <span className={`ml-2 font-medium ${product.stock < 5 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                      <span className={`font-semibold ${product.stock < 5 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
                         {product.stock} {product.unitType || 'pcs'}
                       </span>
                     </div>
-                    <div>
+                    <div className="flex justify-between">
                       <span className="text-gray-500 dark:text-gray-400">Category:</span>
-                      <span className="ml-2 font-medium text-gray-900 dark:text-white">
+                      <span className="font-semibold text-gray-900 dark:text-white">
                         {product.category || 'N/A'}
                       </span>
                     </div>
                     {(product.size || product.color) && (
-                      <div className="col-span-2">
+                      <div className="flex justify-between pt-1 border-t border-gray-200 dark:border-gray-700">
                         <span className="text-gray-500 dark:text-gray-400">Variants:</span>
-                        <span className="ml-2 text-gray-900 dark:text-white">
+                        <span className="text-gray-900 dark:text-white text-right">
                           {[product.size, product.color].filter(Boolean).join(', ') || 'N/A'}
                         </span>
                       </div>
@@ -274,8 +274,8 @@ function InventoryManagement() {
             )}
           </div>
 
-          {/* Desktop Table View */}
-          <div className="hidden md:block bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+          {/* Desktop Table View - Hidden on mobile and tablet */}
+          <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-700">
