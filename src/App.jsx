@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Sidebar from './components/Sidebar'
 import SalesScreen from './components/SalesScreen'
@@ -50,8 +50,11 @@ function App() {
     return <Login onLogin={() => setIsAuthenticated(true)} />
   }
 
+  // Get base path for GitHub Pages
+  const basename = import.meta.env.PROD ? '/P-O-S' : ''
+
   return (
-    <Router>
+    <Router basename={basename}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Navbar 
           darkMode={darkMode} 
