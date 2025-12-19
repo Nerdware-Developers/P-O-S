@@ -887,6 +887,20 @@ function loginUser(email, password) {
   return { success: true, user: userObj };
 }
 
+function getAllUsers() {
+  const sheet = getSheet(SHEET_NAMES.USERS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const users = data.map(row => {
+    const user = rowToObject(row, headers);
+    delete user.password; // Don't send password back
+    return user;
+  });
+  
+  return { success: true, users };
+}
+
 function createUser(userData) {
   const sheet = getSheet(SHEET_NAMES.USERS);
   const headers = getHeaders(sheet);
@@ -1107,7 +1121,7 @@ function handleRequest(e, method = 'GET') {
       if (action === 'login' && method === 'POST') {
         result = loginUser(requestData.email, requestData.password);
       } else if (method === 'GET') {
-        result = { success: false, error: 'Not implemented' };
+        result = getAllUsers();
       } else if (method === 'POST') {
         result = createUser(requestData);
       } else {

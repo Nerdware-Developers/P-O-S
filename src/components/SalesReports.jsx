@@ -28,7 +28,15 @@ function SalesReports() {
   const loadUsers = async () => {
     try {
       const data = await usersAPI.getAll()
-      const usersList = data.users || data || []
+      // Handle different response formats
+      let usersList = []
+      if (data && data.success && Array.isArray(data.users)) {
+        usersList = data.users
+      } else if (Array.isArray(data)) {
+        usersList = data
+      } else if (data && Array.isArray(data.users)) {
+        usersList = data.users
+      }
       setUsers(usersList)
     } catch (err) {
       console.error('Failed to load users:', err)
@@ -271,7 +279,7 @@ function SalesReports() {
             className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
           >
             <option value="all">All Users</option>
-            {users.map(user => (
+            {Array.isArray(users) && users.map(user => (
               <option key={user.id} value={user.id}>
                 {user.name || user.email}
               </option>
