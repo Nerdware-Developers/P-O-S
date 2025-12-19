@@ -135,6 +135,12 @@ function InventoryManagement() {
 
   const lowStockProducts = products.filter(p => p.stock < 10)
 
+  // Get unique categories from existing products
+  const existingCategories = [...new Set(products
+    .map(p => p.category)
+    .filter(cat => cat && cat.trim() !== '')
+  )].sort()
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
@@ -412,12 +418,26 @@ function InventoryManagement() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Category
                 </label>
-                <input
-                  type="text"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    list="category-suggestions"
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    placeholder="Type or select a category"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                  <datalist id="category-suggestions">
+                    {existingCategories.map((category, index) => (
+                      <option key={index} value={category} />
+                    ))}
+                  </datalist>
+                </div>
+                {existingCategories.length > 0 && (
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Suggestions: {existingCategories.join(', ')}
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
