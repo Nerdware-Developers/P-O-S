@@ -15,6 +15,22 @@ if (API_KEY === 'YOUR_API_KEY' || !API_KEY) {
   console.error('See ENV_SETUP.md for instructions')
 }
 
+// Validate API key format - it should NOT be a URL
+if (API_KEY && API_KEY !== 'YOUR_API_KEY' && API_KEY.startsWith('http')) {
+  console.error('❌ CRITICAL ERROR: API_KEY appears to be set to a URL instead of the actual key!')
+  console.error('   Current value starts with:', API_KEY.substring(0, 30) + '...')
+  console.error('   The API_KEY should be a random string, NOT the API URL')
+  console.error('   Check your .env file or GitHub Secrets - VITE_API_KEY should be the key from GoogleAppsScript/Code.gs line 17')
+  throw new Error('API_KEY is incorrectly set to a URL. It should be the secret key from GoogleAppsScript/Code.gs, not the API URL.')
+}
+
+// Validate API URL format
+if (API_BASE_URL && API_BASE_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL' && !API_BASE_URL.startsWith('https://script.google.com')) {
+  console.warn('⚠️  API_BASE_URL does not look like a Google Apps Script URL')
+  console.warn('   Expected format: https://script.google.com/macros/s/.../exec')
+  console.warn('   Current value:', API_BASE_URL.substring(0, 50) + '...')
+}
+
 // Debug: Log API configuration (remove in production)
 if (import.meta.env.DEV) {
   console.log('🔍 API Configuration Check:', {
@@ -59,6 +75,14 @@ async function apiCall(endpoint, method = 'GET', data = null, id = null, additio
   
   // Add API key if it's configured
   if (API_KEY && API_KEY !== 'YOUR_API_KEY') {
+    // Double-check that API_KEY is not accidentally set to the URL
+    if (API_KEY.startsWith('http')) {
+      console.error('❌ CRITICAL: API_KEY is set to a URL! This is incorrect.')
+      console.error('   API_KEY value:', API_KEY.substring(0, 50) + '...')
+      console.error('   This should be the secret key from GoogleAppsScript/Code.gs line 17')
+      console.error('   NOT the API URL (VITE_API_URL)')
+      throw new Error('API_KEY is incorrectly configured. It should be the secret key, not the API URL. Check your .env file or GitHub Secrets.')
+    }
     params.append('apiKey', API_KEY)
   } else {
     console.error('API_KEY is not configured! Check your .env file.')
