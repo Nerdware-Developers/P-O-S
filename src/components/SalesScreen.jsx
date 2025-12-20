@@ -156,10 +156,15 @@ function SalesScreen() {
     }
   }
 
-  const filteredProducts = Array.isArray(products) ? products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : []
+  const filteredProducts = Array.isArray(products) ? products.filter(product => {
+    if (!product || !product.name) return false
+    const searchLower = searchTerm.toLowerCase()
+    const nameMatch = product.name.toLowerCase().includes(searchLower)
+    const categoryMatch = product.category?.toLowerCase().includes(searchLower)
+    return nameMatch || categoryMatch
+  }) : []
+  
+  console.log('Products state:', products, 'Filtered:', filteredProducts)
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4">
