@@ -100,8 +100,11 @@ function InstallPrompt() {
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-1">
               Install POS App
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
               Add to your home screen for quick access!
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-500">
+              Visit: https://nerdware-developers.github.io/P-O-S/
             </p>
           </div>
           <button

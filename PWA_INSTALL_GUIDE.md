@@ -4,20 +4,23 @@ The POS System is now a Progressive Web App (PWA) that can be installed on your 
 
 ## 🎯 Quick Installation
 
+**📍 Make sure you're on the correct website:** `https://nerdware-developers.github.io/P-O-S/`
+
 ### For Android Users:
-1. Open the POS System in Chrome browser
+1. Open the POS System in Chrome browser at: `https://nerdware-developers.github.io/P-O-S/`
 2. Look for the **"Install"** banner at the bottom of the screen
 3. Tap **"Install"** or **"Add to Home Screen"**
 4. The app icon will appear on your home screen!
 
 **OR Manual Method:**
-1. Tap the **menu (3 dots)** in Chrome
-2. Select **"Add to Home screen"** or **"Install app"**
-3. Tap **"Add"** or **"Install"**
-4. Done! The app is now on your home screen
+1. Go to: `https://nerdware-developers.github.io/P-O-S/`
+2. Tap the **menu (3 dots)** in Chrome
+3. Select **"Add to Home screen"** or **"Install app"**
+4. Tap **"Add"** or **"Install"**
+5. Done! The app is now on your home screen
 
 ### For iPhone/iPad Users:
-1. Open the POS System in Safari browser
+1. Open the POS System in Safari browser at: `https://nerdware-developers.github.io/P-O-S/`
 2. Tap the **Share button** (square with arrow pointing up) at the bottom
 3. Scroll down and tap **"Add to Home Screen"**
 4. Tap **"Add"** in the top right corner
