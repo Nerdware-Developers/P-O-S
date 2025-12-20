@@ -137,6 +137,13 @@ function InventoryManagement() {
 
   const lowStockProducts = products.filter(p => p.stock < 5)
 
+  // Calculate shop value (total inventory value)
+  const shopValue = products.reduce((total, product) => {
+    const buyingPrice = parseFloat(product.buyingPrice) || 0
+    const stock = parseInt(product.stock) || 0
+    return total + (buyingPrice * stock)
+  }, 0)
+
   // Get unique categories from existing products
   const existingCategories = [...new Set(products
     .map(p => p.category)
@@ -168,6 +175,22 @@ function InventoryManagement() {
           {error}
         </div>
       )}
+
+      {/* Shop Value Card */}
+      <div className="mb-4 sm:mb-6 bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 rounded-lg shadow-md p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 className="text-sm sm:text-base font-medium text-blue-100 dark:text-blue-200 mb-1">Total Shop Value</h3>
+            <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">
+              KSH {shopValue.toFixed(2)}
+            </p>
+            <p className="text-xs sm:text-sm text-blue-100 dark:text-blue-200 mt-1">
+              Total value of all inventory items
+            </p>
+          </div>
+          <div className="text-4xl sm:text-5xl">💰</div>
+        </div>
+      </div>
 
       {lowStockProducts.length > 0 && (
         <div className="mb-4 p-4 bg-yellow-100 dark:bg-yellow-900 border border-yellow-400 text-yellow-700 dark:text-yellow-300 rounded">

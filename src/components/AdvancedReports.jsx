@@ -193,13 +193,13 @@ function AdvancedReports() {
   console.log('AdvancedReports rendering', { loading, error, salesCount: sales.length, expensesCount: expenses.length, productsCount: products.length })
   
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Advanced Reports & Analytics</h2>
+    <div className="max-w-7xl mx-auto px-2 sm:px-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 dark:text-white">Advanced Reports & Analytics</h2>
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
-          className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          className="w-full sm:w-auto px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
         >
           <option value="day">Today</option>
           <option value="week">Last 7 Days</option>
@@ -239,38 +239,38 @@ function AdvancedReports() {
       ) : (
         <>
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Total Sales</h3>
-          <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">Total Sales</h3>
+          <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-blue-600 dark:text-blue-400">
             KSH {(totalSales || 0).toFixed(2)}
           </p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Gross Profit</h3>
-          <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">Gross Profit</h3>
+          <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-green-600 dark:text-green-400">
             KSH {(totalProfit || 0).toFixed(2)}
           </p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Total Expenses</h3>
-          <p className="text-3xl font-bold text-red-600 dark:text-red-400">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">Total Expenses</h3>
+          <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-red-600 dark:text-red-400">
             KSH {(totalExpenses || 0).toFixed(2)}
           </p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Net Profit</h3>
-          <p className={`text-3xl font-bold ${(netProfit || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">Net Profit</h3>
+          <p className={`text-lg sm:text-2xl lg:text-3xl font-bold ${(netProfit || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
             KSH {(netProfit || 0).toFixed(2)}
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
         {/* Sales Trend */}
         {Object.keys(salesByDay).length > 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Sales Trend</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">Sales Trend</h3>
             <BarChart 
               data={salesByDay} 
               maxValue={Math.max(...Object.values(salesByDay)) || 1} 
@@ -278,26 +278,26 @@ function AdvancedReports() {
             />
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Sales Trend</h3>
-            <p className="text-gray-500 dark:text-gray-400 text-center py-8">No sales data available for this period</p>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">Sales Trend</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-center py-6 sm:py-8 text-sm sm:text-base">No sales data available for this period</p>
           </div>
         )}
 
         {/* Top Selling Products */}
         {topProducts.length > 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Top Selling Products</h3>
-            <div className="space-y-3">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">Top Selling Products</h3>
+            <div className="space-y-2 sm:space-y-3">
               {topProducts.map((product, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div key={index} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2 sm:p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="flex-1">
-                    <div className="font-medium text-gray-800 dark:text-white">{product.name}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <div className="font-medium text-sm sm:text-base text-gray-800 dark:text-white">{product.name}</div>
+                    <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                       {product.quantity || 0} sold • Profit: KSH {(product.profit || 0).toFixed(2)}
                     </div>
                   </div>
-                  <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                  <div className="text-base sm:text-lg font-bold text-blue-600 dark:text-blue-400">
                     KSH {(product.revenue || 0).toFixed(2)}
                   </div>
                 </div>
@@ -305,18 +305,18 @@ function AdvancedReports() {
             </div>
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Top Selling Products</h3>
-            <p className="text-gray-500 dark:text-gray-400 text-center py-8">No product sales data available</p>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">Top Selling Products</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-center py-6 sm:py-8 text-sm sm:text-base">No product sales data available</p>
           </div>
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
         {/* Sales by Category */}
         {Object.keys(salesByCategory).length > 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Sales by Category</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">Sales by Category</h3>
             <BarChart 
               data={salesByCategory} 
               maxValue={Math.max(...Object.values(salesByCategory)) || 1} 
@@ -324,16 +324,16 @@ function AdvancedReports() {
             />
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Sales by Category</h3>
-            <p className="text-gray-500 dark:text-gray-400 text-center py-8">No category sales data available</p>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">Sales by Category</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-center py-6 sm:py-8 text-sm sm:text-base">No category sales data available</p>
           </div>
         )}
 
         {/* Expenses by Category */}
         {Object.keys(expensesByCategory).length > 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Expenses by Category</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">Expenses by Category</h3>
             <BarChart 
               data={expensesByCategory} 
               maxValue={Math.max(...Object.values(expensesByCategory)) || 1} 
@@ -341,25 +341,27 @@ function AdvancedReports() {
             />
           </div>
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Expenses by Category</h3>
-            <p className="text-gray-500 dark:text-gray-400 text-center py-8">No expense data available</p>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">Expenses by Category</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-center py-6 sm:py-8 text-sm sm:text-base">No expense data available</p>
           </div>
         )}
       </div>
 
       {/* Profit Margin Analysis */}
       {topProducts.length > 0 && (
-        <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Profit Margin Analysis</h3>
-          <div className="overflow-x-auto">
+        <div className="mt-4 sm:mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+          <div className="p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">Profit Margin Analysis</h3>
+          </div>
+          <div className="overflow-x-auto -mx-2 sm:mx-0">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Product</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Revenue</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Profit</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Margin %</th>
+                  <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Product</th>
+                  <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Revenue</th>
+                  <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Profit</th>
+                  <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Margin %</th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -367,10 +369,10 @@ function AdvancedReports() {
                   const margin = product.revenue > 0 ? (product.profit / product.revenue) * 100 : 0
                   return (
                     <tr key={index}>
-                      <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">{product.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">KSH {(product.revenue || 0).toFixed(2)}</td>
-                      <td className="px-6 py-4 text-sm text-green-600 dark:text-green-400">KSH {(product.profit || 0).toFixed(2)}</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">
+                      <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-xs sm:text-sm text-gray-900 dark:text-white">{product.name}</td>
+                      <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400">KSH {(product.revenue || 0).toFixed(2)}</td>
+                      <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-xs sm:text-sm text-green-600 dark:text-green-400">KSH {(product.profit || 0).toFixed(2)}</td>
+                      <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
                         {(margin || 0).toFixed(1)}%
                       </td>
                     </tr>

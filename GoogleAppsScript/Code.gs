@@ -55,7 +55,7 @@ function getSheet(sheetName) {
       } else if (sheetName === SHEET_NAMES.USERS) {
         sheet.appendRow(['id', 'email', 'password', 'name', 'role', 'createdAt']);
       } else if (sheetName === SHEET_NAMES.EXPENSES) {
-        sheet.appendRow(['id', 'description', 'category', 'amount', 'date', 'paymentMethod', 'notes', 'createdAt']);
+        sheet.appendRow(['id', 'description', 'category', 'amount', 'date', 'paymentMethod', 'notes', 'status', 'createdAt']);
       }
     }
     return sheet;
@@ -804,6 +804,7 @@ function createExpense(expenseData) {
       date: expenseData.date || new Date().toISOString().split('T')[0],
       paymentMethod: expenseData.paymentMethod || 'Cash',
       notes: expenseData.notes || '',
+      status: expenseData.status || 'paid',
       createdAt: new Date().toISOString()
     };
     
