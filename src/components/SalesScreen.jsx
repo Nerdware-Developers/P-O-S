@@ -18,12 +18,22 @@ function SalesScreen() {
     try {
       setLoading(true)
       const data = await productsAPI.getAll()
-      setProducts(data.products || data || [])
+      // Safely extract products array from API response
+      let productsArray = []
+      if (data && data.success && Array.isArray(data.products)) {
+        productsArray = data.products
+      } else if (Array.isArray(data.products)) {
+        productsArray = data.products
+      } else if (Array.isArray(data)) {
+        productsArray = data
+      }
+      setProducts(Array.isArray(productsArray) ? productsArray : [])
       setError(null)
     } catch (err) {
       const errorMessage = err.message || 'Unknown error'
       setError(`Failed to load products: ${errorMessage}. Please check your API configuration and browser console for details.`)
       console.error('Products API Error:', err)
+      setProducts([]) // Set empty array on error
     } finally {
       setLoading(false)
     }

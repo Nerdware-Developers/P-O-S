@@ -80,6 +80,10 @@ function AdvancedReports() {
 
   // Filter data by period
   const getFilteredData = (data, dateField = 'timestamp') => {
+    if (!Array.isArray(data)) {
+      return []
+    }
+    
     const now = new Date()
     let startDate
 
@@ -99,8 +103,13 @@ function AdvancedReports() {
     }
 
     return data.filter(item => {
-      const itemDate = new Date(item[dateField] || item.date)
-      return itemDate >= startDate
+      if (!item) return false
+      try {
+        const itemDate = new Date(item[dateField] || item.date)
+        return itemDate >= startDate
+      } catch (e) {
+        return false
+      }
     })
   }
 

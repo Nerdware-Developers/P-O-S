@@ -30,11 +30,21 @@ function InventoryManagement() {
     try {
       setLoading(true)
       const data = await productsAPI.getAll()
-      setProducts(data.products || data || [])
+      // Safely extract products array from API response
+      let productsArray = []
+      if (data && data.success && Array.isArray(data.products)) {
+        productsArray = data.products
+      } else if (Array.isArray(data.products)) {
+        productsArray = data.products
+      } else if (Array.isArray(data)) {
+        productsArray = data
+      }
+      setProducts(Array.isArray(productsArray) ? productsArray : [])
       setError(null)
     } catch (err) {
       setError('Failed to load products. Please check your API configuration.')
       console.error(err)
+      setProducts([]) // Set empty array on error
     } finally {
       setLoading(false)
     }
@@ -135,28 +145,31 @@ function InventoryManagement() {
     }
   }
 
-  const lowStockProducts = products.filter(p => p.stock < 5)
+  // Ensure products is always an array
+  const productsArray = Array.isArray(products) ? products : []
+  
+  const lowStockProducts = Array.isArray(productsArray) ? productsArray.filter(p => p.stock < 5) : []
 
   // Calculate shop value (total inventory value)
-  const shopValue = products.reduce((total, product) => {
+  const shopValue = Array.isArray(productsArray) ? productsArray.reduce((total, product) => {
     const buyingPrice = parseFloat(product.buyingPrice) || 0
     const stock = parseInt(product.stock) || 0
     return total + (buyingPrice * stock)
-  }, 0)
+  }, 0) : 0
 
   // Get unique categories from existing products
-  const existingCategories = [...new Set(products
+  const existingCategories = Array.isArray(productsArray) ? [...new Set(productsArray
     .map(p => p.category)
     .filter(cat => cat && cat.trim() !== '')
-  )].sort()
+  )].sort() : []
 
   // Filter products based on search and category
-  const filteredProducts = products.filter(product => {
+  const filteredProducts = Array.isArray(productsArray) ? productsArray.filter(product => {
     const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.description?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory
     return matchesSearch && matchesCategory
-  })
+  }) : []
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4">

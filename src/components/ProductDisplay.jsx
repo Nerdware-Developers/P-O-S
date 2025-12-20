@@ -20,26 +20,36 @@ function ProductDisplay() {
     try {
       setLoading(true)
       const data = await productsAPI.getAll()
-      setProducts(data.products || data || [])
+      // Safely extract products array from API response
+      let productsArray = []
+      if (data && data.success && Array.isArray(data.products)) {
+        productsArray = data.products
+      } else if (Array.isArray(data.products)) {
+        productsArray = data.products
+      } else if (Array.isArray(data)) {
+        productsArray = data
+      }
+      setProducts(Array.isArray(productsArray) ? productsArray : [])
       setError(null)
     } catch (err) {
       setError('Failed to load products. Please check your API configuration.')
       console.error(err)
+      setProducts([]) // Set empty array on error
     } finally {
       setLoading(false)
     }
   }
 
-  // Get unique categories
-  const categories = ['all', ...new Set(products.map(p => p.category).filter(Boolean))]
+  // Get unique categories - with safety check
+  const categories = Array.isArray(products) ? ['all', ...new Set(products.map(p => p.category).filter(Boolean))] : ['all']
 
-  // Filter products
-  const filteredProducts = products.filter(product => {
+  // Filter products - with safety check
+  const filteredProducts = Array.isArray(products) ? products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.description?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory
     return matchesSearch && matchesCategory && product.stock > 0
-  })
+  }) : []
 
   const handleSellProduct = async () => {
     if (!sellingProduct || quantity < 1 || quantity > sellingProduct.stock) {
