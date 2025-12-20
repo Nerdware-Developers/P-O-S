@@ -17,31 +17,51 @@ function SalesScreen() {
   const loadProducts = async () => {
     try {
       setLoading(true)
+      setError(null)
       const data = await productsAPI.getAll()
       console.log('Products API Response:', data)
+      console.log('Response type:', typeof data)
+      console.log('Has success?', data?.success)
+      console.log('Has products?', !!data?.products)
+      console.log('Products type:', Array.isArray(data?.products) ? 'array' : typeof data?.products)
       
       // Safely extract products array from API response
       let productsArray = []
       if (data) {
         if (data.success && Array.isArray(data.products)) {
           productsArray = data.products
+          console.log('Using data.products (success=true)')
         } else if (Array.isArray(data.products)) {
           productsArray = data.products
+          console.log('Using data.products (array)')
         } else if (Array.isArray(data)) {
           productsArray = data
+          console.log('Using data directly (array)')
         } else if (data.products && typeof data.products === 'object' && !Array.isArray(data.products)) {
           // If products is an object, try to convert to array
           productsArray = Object.values(data.products)
+          console.log('Converted products object to array')
+        } else {
+          console.warn('Could not extract products from response:', data)
         }
+      } else {
+        console.warn('API returned null or undefined')
       }
       
       console.log('Extracted products array:', productsArray, 'Length:', productsArray.length)
+      if (productsArray.length > 0) {
+        console.log('First product:', productsArray[0])
+      }
+      
       setProducts(Array.isArray(productsArray) ? productsArray : [])
-      setError(null)
+      if (productsArray.length === 0) {
+        console.warn('No products loaded. Check if products exist in Google Sheets.')
+      }
     } catch (err) {
       const errorMessage = err.message || 'Unknown error'
       setError(`Failed to load products: ${errorMessage}. Please check your API configuration and browser console for details.`)
       console.error('Products API Error:', err)
+      console.error('Error stack:', err.stack)
       setProducts([]) // Set empty array on error
     } finally {
       setLoading(false)
@@ -216,7 +236,25 @@ function SalesScreen() {
                   </div>
                 )) : (
                   <div className="col-span-full text-center py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-                    No products found
+                    {searchTerm ? (
+                      <div>
+                        <p>No products found matching "{searchTerm}"</p>
+                        <p className="text-xs mt-2 text-gray-400 dark:text-gray-500">
+                          {Array.isArray(products) && products.length > 0 
+                            ? `Try a different search term. ${products.length} product(s) available.`
+                            : 'No products in database. Add products in the Inventory section.'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p>No products found</p>
+                        <p className="text-xs mt-2 text-gray-400 dark:text-gray-500">
+                          {Array.isArray(products) && products.length === 0
+                            ? 'No products in database. Add products in the Inventory section.'
+                            : 'Check browser console (F12) for API errors or configuration issues.'}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
