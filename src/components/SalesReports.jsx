@@ -268,7 +268,7 @@ function SalesReports() {
   }
   
   return (
-    <div className="max-w-7xl mx-auto px-2 sm:px-4 overflow-x-hidden">
+    <div className="w-full max-w-7xl mx-auto px-2 sm:px-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">Sales Reports</h2>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
@@ -365,9 +365,9 @@ function SalesReports() {
       )}
 
       {/* Sales Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700" style={{ minWidth: '600px' }}>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden w-full">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full divide-y divide-gray-200 dark:divide-gray-700" style={{ minWidth: '600px' }}>
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
                 <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] xs:text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
