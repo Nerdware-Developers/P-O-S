@@ -69,7 +69,7 @@ function SalesReports() {
     } catch (err) {
       console.error('Summary loading error:', err)
       // Calculate from sales data as fallback
-      if (sales.length > 0) {
+      if (Array.isArray(sales) && sales.length > 0) {
         const today = new Date().toISOString().split('T')[0]
         const now = new Date()
         const currentMonth = now.getMonth() + 1
@@ -80,16 +80,16 @@ function SalesReports() {
           const saleDate = new Date(sale.timestamp).toISOString().split('T')[0]
           return saleDate === today
         })
-        const dailyTotal = dailySales.reduce((sum, sale) => sum + (sale?.total || sale?.subtotal || 0), 0)
-        const dailyProfit = dailySales.reduce((sum, sale) => sum + (sale?.profit || 0), 0)
+        const dailyTotal = Array.isArray(dailySales) ? dailySales.reduce((sum, sale) => sum + (sale?.total || sale?.subtotal || 0), 0) : 0
+        const dailyProfit = Array.isArray(dailySales) ? dailySales.reduce((sum, sale) => sum + (sale?.profit || 0), 0) : 0
         
         const monthlySales = sales.filter(sale => {
           if (!sale || !sale.timestamp) return false
           const saleDate = new Date(sale.timestamp)
           return saleDate.getMonth() + 1 === currentMonth && saleDate.getFullYear() === currentYear
         })
-        const monthlyTotal = monthlySales.reduce((sum, sale) => sum + (sale?.total || sale?.subtotal || 0), 0)
-        const monthlyProfit = monthlySales.reduce((sum, sale) => sum + (sale?.profit || 0), 0)
+        const monthlyTotal = Array.isArray(monthlySales) ? monthlySales.reduce((sum, sale) => sum + (sale?.total || sale?.subtotal || 0), 0) : 0
+        const monthlyProfit = Array.isArray(monthlySales) ? monthlySales.reduce((sum, sale) => sum + (sale?.profit || 0), 0) : 0
         
         setReportData(prev => ({
           ...prev,
