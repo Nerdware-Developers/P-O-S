@@ -138,8 +138,8 @@ function ExpenseManagement() {
   const expensesArray = Array.isArray(expenses) ? expenses : []
   
   // Calculate totals - with safety checks
-  const totalExpenses = expensesArray.reduce((sum, exp) => sum + (exp?.amount || 0), 0)
-  const todayExpenses = expensesArray.filter(exp => {
+  const totalExpenses = Array.isArray(expensesArray) ? expensesArray.reduce((sum, exp) => sum + (exp?.amount || 0), 0) : 0
+  const todayExpenses = Array.isArray(expensesArray) ? expensesArray.filter(exp => {
     if (!exp || !exp.date) return false
     try {
       const expDate = new Date(exp.date).toISOString().split('T')[0]
@@ -148,14 +148,14 @@ function ExpenseManagement() {
     } catch (e) {
       return false
     }
-  }).reduce((sum, exp) => sum + (exp?.amount || 0), 0)
+  }).reduce((sum, exp) => sum + (exp?.amount || 0), 0) : 0
 
-  const expensesByCategory = expensesArray.reduce((acc, exp) => {
+  const expensesByCategory = Array.isArray(expensesArray) ? expensesArray.reduce((acc, exp) => {
     if (!exp) return acc
     const cat = exp.category || 'Uncategorized'
     acc[cat] = (acc[cat] || 0) + (exp.amount || 0)
     return acc
-  }, {})
+  }, {}) : {}
 
   console.log('ExpenseManagement rendering', { loading, error, expensesCount: expensesArray.length, expenses: expensesArray })
   
@@ -164,10 +164,16 @@ function ExpenseManagement() {
     console.warn('ExpenseManagement: No expenses data, loading, or error state')
   }
   
-  // Separate pending and paid expenses
-  const pendingExpenses = expensesArray.filter(exp => exp.status === 'pending' || !exp.status)
-  const paidExpenses = expensesArray.filter(exp => exp.status === 'paid')
-  const totalPending = pendingExpenses.reduce((sum, exp) => sum + (exp?.amount || 0), 0)
+  // Separate pending and paid expenses - with safety checks
+  const pendingExpenses = Array.isArray(expensesArray) ? expensesArray.filter(exp => {
+    if (!exp) return false
+    return exp.status === 'pending' || !exp.status
+  }) : []
+  const paidExpenses = Array.isArray(expensesArray) ? expensesArray.filter(exp => {
+    if (!exp) return false
+    return exp.status === 'paid'
+  }) : []
+  const totalPending = Array.isArray(pendingExpenses) ? pendingExpenses.reduce((sum, exp) => sum + (exp?.amount || 0), 0) : 0
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4">
