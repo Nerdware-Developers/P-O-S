@@ -41,7 +41,17 @@ function ExpenseManagement() {
       const data = await expensesAPI.getAll()
       console.log('Expenses API Response:', data)
       // Ensure expenses is always an array
-      const expensesData = data.expenses || data || []
+      let expensesData = []
+      if (data && data.success && Array.isArray(data.expenses)) {
+        expensesData = data.expenses
+      } else if (Array.isArray(data.expenses)) {
+        expensesData = data.expenses
+      } else if (Array.isArray(data)) {
+        expensesData = data
+      } else if (data && typeof data === 'object' && !Array.isArray(data)) {
+        // If it's an object but not an array, try to extract expenses
+        expensesData = []
+      }
       setExpenses(Array.isArray(expensesData) ? expensesData : [])
     } catch (err) {
       console.error('Expense loading error:', err)
