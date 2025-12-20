@@ -124,9 +124,17 @@ function SalesReports() {
       console.log('Loading sales with filters:', filters)
       const data = await salesAPI.getAll(filters)
       console.log('Sales API Response:', data)
-      const salesData = data.sales || data || []
-      setSales(salesData)
-      calculateReportData(salesData)
+      // Safely extract sales array from API response
+      let salesData = []
+      if (data && data.success && Array.isArray(data.sales)) {
+        salesData = data.sales
+      } else if (Array.isArray(data.sales)) {
+        salesData = data.sales
+      } else if (Array.isArray(data)) {
+        salesData = data
+      }
+      setSales(Array.isArray(salesData) ? salesData : [])
+      calculateReportData(Array.isArray(salesData) ? salesData : [])
     } catch (err) {
       console.error('Sales loading error:', err)
       setError(`Failed to load sales data: ${err.message || 'Unknown error'}. Check browser console for details.`)
