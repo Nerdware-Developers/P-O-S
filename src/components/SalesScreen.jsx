@@ -139,10 +139,10 @@ function SalesScreen() {
     }
   }
 
-  const filteredProducts = products.filter(product =>
+  const filteredProducts = Array.isArray(products) ? products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  ) : []
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4">
