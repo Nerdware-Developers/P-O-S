@@ -21,9 +21,17 @@ function SalesScreen() {
       const data = await productsAPI.getAll()
       console.log('Products API Response:', data)
       console.log('Response type:', typeof data)
+      console.log('Response keys:', data ? Object.keys(data) : 'null')
+      console.log('Full response:', JSON.stringify(data, null, 2))
       console.log('Has success?', data?.success)
       console.log('Has products?', !!data?.products)
+      console.log('Has error?', !!data?.error)
       console.log('Products type:', Array.isArray(data?.products) ? 'array' : typeof data?.products)
+      
+      // Check if there's an error in the response
+      if (data?.error) {
+        throw new Error(data.error)
+      }
       
       // Safely extract products array from API response
       let productsArray = []
@@ -42,7 +50,21 @@ function SalesScreen() {
           productsArray = Object.values(data.products)
           console.log('Converted products object to array')
         } else {
+          // If response doesn't have expected structure, log it and try to find products
           console.warn('Could not extract products from response:', data)
+          console.warn('Response structure:', {
+            keys: Object.keys(data),
+            values: Object.values(data).map(v => typeof v),
+            hasArray: Object.values(data).some(v => Array.isArray(v))
+          })
+          
+          // Try to find any array in the response
+          const arraysInResponse = Object.values(data).filter(v => Array.isArray(v))
+          if (arraysInResponse.length > 0) {
+            console.log('Found arrays in response:', arraysInResponse)
+            productsArray = arraysInResponse[0] // Use first array found
+            console.log('Using first array found in response')
+          }
         }
       } else {
         console.warn('API returned null or undefined')
