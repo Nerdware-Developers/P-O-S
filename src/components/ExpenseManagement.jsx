@@ -237,13 +237,13 @@ function ExpenseManagement() {
       </div>
 
       {/* Pending Expenses Section */}
-      {pendingExpenses.length > 0 && (
+      {Array.isArray(pendingExpenses) && pendingExpenses.length > 0 && (
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
           <h3 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">
             ⚠️ Pending Expenses ({pendingExpenses.length})
           </h3>
           <div className="space-y-2 sm:space-y-3">
-            {pendingExpenses.map((expense) => (
+            {Array.isArray(pendingExpenses) && pendingExpenses.map((expense) => (
               <div key={expense.id} className="bg-white dark:bg-gray-800 rounded-lg p-3 sm:p-4 border border-yellow-300 dark:border-yellow-700">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                   <div className="flex-1">
@@ -299,12 +299,12 @@ function ExpenseManagement() {
         <>
           {/* Mobile Card View */}
           <div className="block lg:hidden space-y-3">
-            {expensesArray.length === 0 ? (
+            {!Array.isArray(expensesArray) || expensesArray.length === 0 ? (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 No expenses recorded yet
               </div>
             ) : (
-              expensesArray.map((expense) => (
+              Array.isArray(expensesArray) && expensesArray.map((expense) => (
                 <div
                   key={expense.id}
                   className={`bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 ${
@@ -391,14 +391,14 @@ function ExpenseManagement() {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {expensesArray.length === 0 ? (
+                  {!Array.isArray(expensesArray) || expensesArray.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                         No expenses recorded yet
                       </td>
                     </tr>
                   ) : (
-                    expensesArray.map((expense) => (
+                    Array.isArray(expensesArray) && expensesArray.map((expense) => (
                       <tr key={expense.id} className={expense.status === 'pending' ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                           {new Date(expense.date).toLocaleDateString()}

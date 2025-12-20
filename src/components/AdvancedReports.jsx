@@ -36,9 +36,37 @@ function AdvancedReports() {
       
       console.log('Analytics data loaded:', { salesData, expensesData, productsData })
       
-      setSales(salesData.sales || salesData || [])
-      setExpenses(expensesData.expenses || expensesData || [])
-      setProducts(productsData.products || productsData || [])
+      // Safely extract arrays from API responses
+      let salesArray = []
+      if (salesData && salesData.success && Array.isArray(salesData.sales)) {
+        salesArray = salesData.sales
+      } else if (Array.isArray(salesData.sales)) {
+        salesArray = salesData.sales
+      } else if (Array.isArray(salesData)) {
+        salesArray = salesData
+      }
+      
+      let expensesArray = []
+      if (expensesData && expensesData.success && Array.isArray(expensesData.expenses)) {
+        expensesArray = expensesData.expenses
+      } else if (Array.isArray(expensesData.expenses)) {
+        expensesArray = expensesData.expenses
+      } else if (Array.isArray(expensesData)) {
+        expensesArray = expensesData
+      }
+      
+      let productsArray = []
+      if (productsData && productsData.success && Array.isArray(productsData.products)) {
+        productsArray = productsData.products
+      } else if (Array.isArray(productsData.products)) {
+        productsArray = productsData.products
+      } else if (Array.isArray(productsData)) {
+        productsArray = productsData
+      }
+      
+      setSales(Array.isArray(salesArray) ? salesArray : [])
+      setExpenses(Array.isArray(expensesArray) ? expensesArray : [])
+      setProducts(Array.isArray(productsArray) ? productsArray : [])
     } catch (err) {
       console.error('Analytics loading error:', err)
       setError(`Failed to load data: ${err.message || 'Unknown error'}. Check browser console for details.`)
