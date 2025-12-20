@@ -60,61 +60,35 @@ function InstallPrompt() {
     if (isIOS) {
       instructions = `
 📱 iOS Installation:
-1. Tap the Share button (square with arrow) at the bottom
-2. Scroll down and tap "Add to Home Screen"
-3. Tap "Add" in the top right
-4. The app will appear on your home screen!
+1. Make sure you're on: https://nerdware-developers.github.io/P-O-S/
+2. Tap the Share button (square with arrow) at the bottom
+3. Scroll down and tap "Add to Home Screen"
+4. Tap "Add" in the top right
+5. The app will appear on your home screen!
       `
     } else if (isAndroid) {
       instructions = `
 📱 Android Installation:
-1. Tap the menu (3 dots) in your browser
-2. Tap "Add to Home screen" or "Install app"
-3. Tap "Add" or "Install"
-4. The app will appear on your home screen!
+1. Make sure you're on: https://nerdware-developers.github.io/P-O-S/
+2. Tap the menu (3 dots) in your browser
+3. Tap "Add to Home screen" or "Install app"
+4. Tap "Add" or "Install"
+5. The app will appear on your home screen!
       `
     } else {
       instructions = `
 📱 Installation:
-1. Look for an install icon in your browser's address bar
-2. Or use your browser's menu to "Install" or "Add to Home Screen"
-3. Follow the prompts to install
+1. Make sure you're on: https://nerdware-developers.github.io/P-O-S/
+2. Look for an install icon in your browser's address bar
+3. Or use your browser's menu to "Install" or "Add to Home Screen"
+4. Follow the prompts to install
       `
     }
     
     alert(instructions)
   }
 
-  // Always show manual install option on mobile
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-  
-  if (isInstalled) {
-    return null
-  }
-
-  // Show manual install button if no automatic prompt
-  if (!showPrompt && isMobile) {
-    return (
-      <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 z-50">
-        <div className="bg-blue-600 dark:bg-blue-700 rounded-lg shadow-lg p-3 sm:p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-white text-sm font-medium mb-1">Install App</p>
-              <p className="text-blue-100 text-xs">Tap for installation instructions</p>
-            </div>
-            <button
-              onClick={showManualInstructions}
-              className="ml-3 px-4 py-2 bg-white text-blue-600 font-semibold rounded-lg text-sm hover:bg-blue-50 transition-colors"
-            >
-              Install
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!showPrompt) {
+  if (isInstalled || !showPrompt) {
     return null
   }
 
