@@ -26,13 +26,13 @@ export default defineConfig(({ command, mode }) => {
         scope: command === 'build' ? '/P-O-S/' : '/',
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: command === 'build' ? '/P-O-S/pwa-192x192.png' : '/pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any maskable'
           },
           {
-            src: 'pwa-512x512.png',
+            src: command === 'build' ? '/P-O-S/pwa-512x512.png' : '/pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'

@@ -53,6 +53,10 @@ function SalesScreen() {
   }
 
   const updateQuantity = (productId, delta) => {
+    if (!Array.isArray(cart)) {
+      setCart([])
+      return
+    }
     setCart(cart.map(item => {
       if (item.id === productId) {
         const newQuantity = Math.max(0, item.quantity + delta)
@@ -63,6 +67,10 @@ function SalesScreen() {
   }
 
   const removeFromCart = (productId) => {
+    if (!Array.isArray(cart)) {
+      setCart([])
+      return
+    }
     setCart(cart.filter(item => item.id !== productId))
   }
 
@@ -172,7 +180,7 @@ function SalesScreen() {
               <div className="text-center py-8 text-sm sm:text-base">Loading products...</div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 max-h-[500px] sm:max-h-[600px] overflow-y-auto">
-                {filteredProducts.map((product) => (
+                {Array.isArray(filteredProducts) && filteredProducts.length > 0 ? filteredProducts.map((product) => (
                   <div
                     key={product.id}
                     className={`p-2 sm:p-4 border rounded-lg cursor-pointer transition-all ${
@@ -192,7 +200,11 @@ function SalesScreen() {
                       Stock: {product.stock} {product.unitType || 'pcs'}
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="col-span-full text-center py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                    No products found
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -203,14 +215,14 @@ function SalesScreen() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 sticky top-16 sm:top-20">
             <h3 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">Cart</h3>
             
-            {cart.length === 0 ? (
+            {!Array.isArray(cart) || cart.length === 0 ? (
               <div className="text-gray-500 dark:text-gray-400 text-center py-8">
                 Cart is empty
               </div>
             ) : (
               <>
                 <div className="space-y-3 mb-4 max-h-[400px] overflow-y-auto">
-                  {cart.map((item) => (
+                  {Array.isArray(cart) && cart.map((item) => (
                     <div
                       key={item.id}
                       className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
