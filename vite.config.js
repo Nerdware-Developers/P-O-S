@@ -24,6 +24,8 @@ export default defineConfig(({ command, mode }) => {
         orientation: 'any',
         start_url: command === 'build' ? '/P-O-S/' : '/',
         scope: command === 'build' ? '/P-O-S/' : '/',
+        // Icons are optional - if files don't exist, PWA will still work but without custom icons
+        // To add icons: create pwa-192x192.png and pwa-512x512.png in the public/ folder
         icons: [
           {
             src: command === 'build' ? '/P-O-S/pwa-192x192.png' : '/pwa-192x192.png',

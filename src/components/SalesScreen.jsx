@@ -19,55 +19,103 @@ function SalesScreen() {
       setLoading(true)
       setError(null)
       const data = await productsAPI.getAll()
-      console.log('Products API Response:', data)
-      console.log('Response type:', typeof data)
-      console.log('Response keys:', data ? Object.keys(data) : 'null')
-      console.log('Full response:', JSON.stringify(data, null, 2))
-      console.log('Has success?', data?.success)
-      console.log('Has products?', !!data?.products)
-      console.log('Has error?', !!data?.error)
-      console.log('Products type:', Array.isArray(data?.products) ? 'array' : typeof data?.products)
       
-      // Check if there's an error in the response
-      if (data?.error) {
+      // Comprehensive logging to diagnose the actual response structure
+      console.log('=== PRODUCTS API RESPONSE DEBUG ===')
+      console.log('Raw response:', data)
+      console.log('Response type:', typeof data)
+      console.log('Is null/undefined?', data === null || data === undefined)
+      if (data) {
+        console.log('Response keys:', Object.keys(data))
+        console.log('Response values:', Object.values(data))
+        console.log('Full JSON:', JSON.stringify(data, null, 2))
+        console.log('Has success property?', 'success' in data)
+        console.log('Success value:', data.success)
+        console.log('Has products property?', 'products' in data)
+        console.log('Products value:', data.products)
+        console.log('Has error property?', 'error' in data)
+        console.log('Error value:', data.error)
+        console.log('Products type:', Array.isArray(data.products) ? 'array' : typeof data.products)
+        
+        // Check for nested structures or unexpected properties
+        if (typeof data === 'object' && data !== null) {
+          const allKeys = Object.keys(data)
+          console.log('All properties in response:', allKeys)
+          allKeys.forEach(key => {
+            const value = data[key]
+            console.log(`  ${key}:`, {
+              type: typeof value,
+              isArray: Array.isArray(value),
+              value: value,
+              stringified: typeof value === 'object' ? JSON.stringify(value).substring(0, 100) : value
+            })
+          })
+        }
+      }
+      console.log('=== END DEBUG ===')
+      
+      // Check if response is null or undefined
+      if (!data) {
+        throw new Error('API returned null or undefined. Check API configuration.')
+      }
+      
+      // Check if there's an error in the response (explicit error field or success: false)
+      if (data.error) {
         throw new Error(data.error)
+      }
+      
+      // Check if success is explicitly false
+      if (data.success === false) {
+        const errorMsg = data.error || 'API request failed. Check API configuration and Google Sheets setup.'
+        throw new Error(errorMsg)
       }
       
       // Safely extract products array from API response
       let productsArray = []
-      if (data) {
-        if (data.success && Array.isArray(data.products)) {
-          productsArray = data.products
-          console.log('Using data.products (success=true)')
-        } else if (Array.isArray(data.products)) {
-          productsArray = data.products
-          console.log('Using data.products (array)')
-        } else if (Array.isArray(data)) {
-          productsArray = data
-          console.log('Using data directly (array)')
-        } else if (data.products && typeof data.products === 'object' && !Array.isArray(data.products)) {
-          // If products is an object, try to convert to array
-          productsArray = Object.values(data.products)
-          console.log('Converted products object to array')
+      
+      // Expected structure: { success: true, products: [...] }
+      if (data.success === true && Array.isArray(data.products)) {
+        productsArray = data.products
+        console.log('Using data.products (success=true)')
+      } 
+      // Fallback: products array directly in response
+      else if (Array.isArray(data.products)) {
+        productsArray = data.products
+        console.log('Using data.products (array, no success flag)')
+      } 
+      // Fallback: response is directly an array
+      else if (Array.isArray(data)) {
+        productsArray = data
+        console.log('Using data directly (array)')
+      } 
+      // Fallback: products is an object, convert to array
+      else if (data.products && typeof data.products === 'object' && !Array.isArray(data.products)) {
+        productsArray = Object.values(data.products)
+        console.log('Converted products object to array')
+      } 
+      // Last resort: try to find any array in the response
+      else {
+        console.warn('Could not extract products from response:', data)
+        console.warn('Response structure:', {
+          keys: Object.keys(data),
+          values: Object.values(data).map(v => typeof v),
+          hasArray: Object.values(data).some(v => Array.isArray(v))
+        })
+        
+        // Try to find any array in the response
+        const arraysInResponse = Object.values(data).filter(v => Array.isArray(v))
+        if (arraysInResponse.length > 0) {
+          console.log('Found arrays in response:', arraysInResponse)
+          productsArray = arraysInResponse[0] // Use first array found
+          console.log('Using first array found in response')
         } else {
-          // If response doesn't have expected structure, log it and try to find products
-          console.warn('Could not extract products from response:', data)
-          console.warn('Response structure:', {
-            keys: Object.keys(data),
-            values: Object.values(data).map(v => typeof v),
-            hasArray: Object.values(data).some(v => Array.isArray(v))
-          })
-          
-          // Try to find any array in the response
-          const arraysInResponse = Object.values(data).filter(v => Array.isArray(v))
-          if (arraysInResponse.length > 0) {
-            console.log('Found arrays in response:', arraysInResponse)
-            productsArray = arraysInResponse[0] // Use first array found
-            console.log('Using first array found in response')
-          }
+          // No products found and no error - might be empty sheet
+          console.warn('No products array found in response. This might mean:')
+          console.warn('1. The Products sheet is empty (add products in Inventory section)')
+          console.warn('2. The API response format is unexpected')
+          console.warn('3. There was an API error that wasn\'t properly formatted')
+          productsArray = [] // Empty array is valid if sheet is empty
         }
-      } else {
-        console.warn('API returned null or undefined')
       }
       
       console.log('Extracted products array:', productsArray, 'Length:', productsArray.length)
