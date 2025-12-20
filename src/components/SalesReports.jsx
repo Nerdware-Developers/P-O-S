@@ -268,7 +268,7 @@ function SalesReports() {
   }
   
   return (
-    <div className="max-w-7xl mx-auto px-2 sm:px-4">
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 overflow-x-hidden">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">Sales Reports</h2>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
@@ -366,26 +366,26 @@ function SalesReports() {
 
       {/* Sales Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto -mx-2 sm:mx-0">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <div className="overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700" style={{ minWidth: '600px' }}>
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] xs:text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] xs:text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] xs:text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[120px]">
                   Items
                 </th>
-                <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] xs:text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   Subtotal
                 </th>
-                <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] xs:text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   Profit
                 </th>
-                <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] xs:text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">
                   Total
                 </th>
               </tr>
@@ -393,40 +393,40 @@ function SalesReports() {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colSpan="6" className="px-2 sm:px-4 lg:px-6 py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                     Loading sales data...
                   </td>
                 </tr>
               ) : sales.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-3 sm:px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colSpan="6" className="px-2 sm:px-4 lg:px-6 py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                     No sales data available
                   </td>
                 </tr>
               ) : (
                 sales.map((sale, index) => (
                   <tr key={sale.id || index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                      <span className="block sm:hidden">{new Date(sale.timestamp).toLocaleDateString()}</span>
+                    <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap text-[10px] xs:text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                      <span className="block sm:hidden">{new Date(sale.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                       <span className="hidden sm:block">{new Date(sale.timestamp).toLocaleString()}</span>
                     </td>
-                    <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                      <span className="truncate block max-w-[80px] sm:max-w-none">
+                    <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap text-[10px] xs:text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                      <span className="truncate block max-w-[60px] sm:max-w-[100px] md:max-w-none">
                         {sale.userName || sale.userId || 'Unknown'}
                       </span>
                     </td>
-                    <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                      <span className="line-clamp-2 sm:line-clamp-none">
+                    <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 text-[10px] xs:text-xs sm:text-sm text-gray-500 dark:text-gray-400 max-w-[150px] sm:max-w-none">
+                      <span className="line-clamp-2 sm:line-clamp-none break-words">
                         {Array.isArray(sale.items) ? sale.items.map(i => `${i.productName || i.name} (${i.quantity || 0})`).join(', ') : (sale.items || 'N/A')}
                       </span>
                     </td>
-                    <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                    <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap text-[10px] xs:text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                       <span className="font-medium">KSH {sale.subtotal?.toFixed(2) || '0.00'}</span>
                     </td>
-                    <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap text-xs sm:text-sm font-medium text-green-600 dark:text-green-400">
+                    <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap text-[10px] xs:text-xs sm:text-sm font-medium text-green-600 dark:text-green-400">
                       KSH {sale.profit?.toFixed(2) || '0.00'}
                     </td>
-                    <td className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                    <td className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 whitespace-nowrap text-[10px] xs:text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
                       KSH {sale.total?.toFixed(2) || '0.00'}
                     </td>
                   </tr>
