@@ -34,8 +34,8 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL || 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec' }}
-          VITE_API_KEY: ${{ secrets.VITE_API_KEY || 'your_api_key' }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_API_KEY: ${{ secrets.VITE_API_KEY }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

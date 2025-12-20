@@ -31,24 +31,47 @@ if (API_BASE_URL && API_BASE_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL' && !A
   console.warn('   Current value:', API_BASE_URL.substring(0, 50) + '...')
 }
 
-// Debug: Log API configuration (remove in production)
-if (import.meta.env.DEV) {
-  console.log('🔍 API Configuration Check:', {
-    hasUrl: !!API_BASE_URL && API_BASE_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL',
-    hasKey: !!API_KEY && API_KEY !== 'YOUR_API_KEY',
-    urlPreview: API_BASE_URL?.substring(0, 80) + '...',
-    fullUrl: API_BASE_URL,
-    envViteApiUrl: import.meta.env.VITE_API_URL,
-    envViteApiKey: import.meta.env.VITE_API_KEY ? '***' + import.meta.env.VITE_API_KEY.slice(-4) : 'NOT SET'
-  })
-  
-  if (API_BASE_URL === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL' || !API_BASE_URL) {
-    console.error('❌ CRITICAL: API_BASE_URL is using default placeholder!')
+// Debug: Log API configuration (ALWAYS log in production to help debug deployment issues)
+console.log('🔍 API Configuration Check:', {
+  mode: import.meta.env.MODE,
+  isDev: import.meta.env.DEV,
+  hasUrl: !!API_BASE_URL && API_BASE_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL',
+  hasKey: !!API_KEY && API_KEY !== 'YOUR_API_KEY',
+  urlPreview: API_BASE_URL?.substring(0, 80) + '...',
+  urlIsPlaceholder: API_BASE_URL === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL',
+  keyIsPlaceholder: API_KEY === 'YOUR_API_KEY',
+  keyStartsWithHttp: API_KEY?.startsWith('http') || false,
+  envViteApiUrl: import.meta.env.VITE_API_URL ? 'SET' : 'NOT SET',
+  envViteApiKey: import.meta.env.VITE_API_KEY ? 'SET (***' + import.meta.env.VITE_API_KEY.slice(-4) + ')' : 'NOT SET'
+})
+
+if (API_BASE_URL === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL' || !API_BASE_URL) {
+  console.error('❌ CRITICAL: API_BASE_URL is using default placeholder!')
+  if (import.meta.env.DEV) {
     console.error('   This means Vite did not load VITE_API_URL from .env file')
     console.error('   Make sure:')
     console.error('   1. .env file exists in project root')
     console.error('   2. .env file has: VITE_API_URL=https://...')
     console.error('   3. Dev server was restarted after creating/editing .env')
+  } else {
+    console.error('   PRODUCTION BUILD: VITE_API_URL was not set during build!')
+    console.error('   Check GitHub Secrets:')
+    console.error('   1. Go to: https://github.com/Nerdware-Developers/P-O-S/settings/secrets/actions')
+    console.error('   2. Verify VITE_API_URL secret exists and is set correctly')
+    console.error('   3. Re-run the GitHub Actions workflow')
+  }
+}
+
+if (API_KEY === 'YOUR_API_KEY' || !API_KEY) {
+  console.error('❌ CRITICAL: API_KEY is using default placeholder!')
+  if (import.meta.env.DEV) {
+    console.error('   This means Vite did not load VITE_API_KEY from .env file')
+  } else {
+    console.error('   PRODUCTION BUILD: VITE_API_KEY was not set during build!')
+    console.error('   Check GitHub Secrets:')
+    console.error('   1. Go to: https://github.com/Nerdware-Developers/P-O-S/settings/secrets/actions')
+    console.error('   2. Verify VITE_API_KEY secret exists and is set correctly')
+    console.error('   3. Re-run the GitHub Actions workflow')
   }
 }
 
