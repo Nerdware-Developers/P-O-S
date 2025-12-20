@@ -18,15 +18,24 @@ function SalesScreen() {
     try {
       setLoading(true)
       const data = await productsAPI.getAll()
+      console.log('Products API Response:', data)
+      
       // Safely extract products array from API response
       let productsArray = []
-      if (data && data.success && Array.isArray(data.products)) {
-        productsArray = data.products
-      } else if (Array.isArray(data.products)) {
-        productsArray = data.products
-      } else if (Array.isArray(data)) {
-        productsArray = data
+      if (data) {
+        if (data.success && Array.isArray(data.products)) {
+          productsArray = data.products
+        } else if (Array.isArray(data.products)) {
+          productsArray = data.products
+        } else if (Array.isArray(data)) {
+          productsArray = data
+        } else if (data.products && typeof data.products === 'object' && !Array.isArray(data.products)) {
+          // If products is an object, try to convert to array
+          productsArray = Object.values(data.products)
+        }
       }
+      
+      console.log('Extracted products array:', productsArray, 'Length:', productsArray.length)
       setProducts(Array.isArray(productsArray) ? productsArray : [])
       setError(null)
     } catch (err) {
