@@ -8,6 +8,11 @@ import SalesReports from './components/SalesReports'
 import ProductDisplay from './components/ProductDisplay'
 import ExpenseManagement from './components/ExpenseManagement'
 import AdvancedReports from './components/AdvancedReports'
+import SupplierManagement from './components/SupplierManagement'
+import PurchaseOrders from './components/PurchaseOrders'
+import Dashboard from './components/Dashboard'
+import SalesTargets from './components/SalesTargets'
+import { NotificationProvider } from './components/NotificationManager'
 import Login from './components/Login'
 import ErrorBoundary from './components/ErrorBoundary'
 import InstallPrompt from './components/InstallPrompt'
@@ -55,8 +60,9 @@ function App() {
   const basename = import.meta.env.PROD ? '/P-O-S' : ''
 
   return (
-    <Router basename={basename}>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <NotificationProvider>
+      <Router basename={basename}>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Navbar 
           darkMode={darkMode} 
           setDarkMode={setDarkMode}
@@ -74,14 +80,19 @@ function App() {
                 <Route path="/expenses" element={<ExpenseManagement />} />
                 <Route path="/reports" element={<SalesReports />} />
                 <Route path="/analytics" element={<AdvancedReports />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/targets" element={<SalesTargets />} />
+                <Route path="/suppliers" element={<SupplierManagement />} />
+                <Route path="/orders" element={<PurchaseOrders />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </ErrorBoundary>
           </main>
         </div>
         <InstallPrompt />
-      </div>
-    </Router>
+        </div>
+      </Router>
+    </NotificationProvider>
   )
 }
 

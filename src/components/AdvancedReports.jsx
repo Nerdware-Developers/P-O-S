@@ -134,6 +134,73 @@ function AdvancedReports() {
     return acc
   }, {}) : {}
 
+  // Peak hours analysis
+  const salesByHour = Array.isArray(filteredSales) ? filteredSales.reduce((acc, sale) => {
+    if (!sale || !sale.timestamp) return acc
+    try {
+      const hour = new Date(sale.timestamp).getHours()
+      const hourLabel = `${hour}:00`
+      if (!acc[hourLabel]) {
+        acc[hourLabel] = { sales: 0, count: 0, profit: 0 }
+      }
+      acc[hourLabel].sales += (sale.total || 0)
+      acc[hourLabel].count += 1
+      acc[hourLabel].profit += (sale.profit || 0)
+    } catch (e) {
+      console.error('Error processing sale hour:', e, sale)
+    }
+    return acc
+  }, {}) : {}
+
+  // Get peak hours
+  const peakHours = Object.entries(salesByHour)
+    .map(([hour, data]) => ({ hour, ...data }))
+    .sort((a, b) => b.sales - a.sales)
+    .slice(0, 5)
+
+  // Average transaction value
+  const avgTransactionValue = filteredSales.length > 0 
+    ? totalSales / filteredSales.length 
+    : 0
+
+  // Sales growth (compare with previous period)
+  const getPreviousPeriodData = () => {
+    const now = new Date()
+    let startDate, endDate
+    switch (period) {
+      case 'day':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        break
+      case 'week':
+        startDate = new Date(now)
+        startDate.setDate(now.getDate() - 14)
+        endDate = new Date(now)
+        endDate.setDate(now.getDate() - 7)
+        break
+      case 'month':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+        endDate = new Date(now.getFullYear(), now.getMonth(), 1)
+        break
+      default:
+        return []
+    }
+    return Array.isArray(sales) ? sales.filter(sale => {
+      if (!sale || !sale.timestamp) return false
+      try {
+        const saleDate = new Date(sale.timestamp)
+        return saleDate >= startDate && saleDate < endDate
+      } catch (e) {
+        return false
+      }
+    }) : []
+  }
+
+  const previousPeriodSales = getPreviousPeriodData().reduce((sum, sale) => sum + (sale.total || 0), 0)
+  const salesGrowth = previousPeriodSales > 0 
+    ? ((totalSales - previousPeriodSales) / previousPeriodSales * 100).toFixed(1)
+    : 0
+
   // Top selling products
   const productSales = {}
   if (Array.isArray(filteredSales)) {
@@ -282,11 +349,19 @@ function AdvancedReports() {
           <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-blue-600 dark:text-blue-400">
             KSH {(totalSales || 0).toFixed(2)}
           </p>
+          {salesGrowth !== 0 && (
+            <p className={`text-xs mt-1 ${parseFloat(salesGrowth) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {parseFloat(salesGrowth) >= 0 ? '↑' : '↓'} {Math.abs(parseFloat(salesGrowth))}% vs previous period
+            </p>
+          )}
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
           <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">Gross Profit</h3>
           <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-green-600 dark:text-green-400">
             KSH {(totalProfit || 0).toFixed(2)}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Margin: {totalSales > 0 ? ((totalProfit / totalSales) * 100).toFixed(1) : 0}%
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
@@ -299,6 +374,37 @@ function AdvancedReports() {
           <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">Net Profit</h3>
           <p className={`text-lg sm:text-2xl lg:text-3xl font-bold ${(netProfit || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
             KSH {(netProfit || 0).toFixed(2)}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Avg Transaction: KSH {avgTransactionValue.toFixed(2)}
+          </p>
+        </div>
+      </div>
+
+      {/* Additional Metrics */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Total Transactions</h3>
+          <p className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">
+            {filteredSales.length}
+          </p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Avg Transaction</h3>
+          <p className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">
+            KSH {avgTransactionValue.toFixed(2)}
+          </p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Top Products</h3>
+          <p className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">
+            {topProducts.length}
+          </p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4">
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Profit Margin</h3>
+          <p className="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">
+            {totalSales > 0 ? ((totalProfit / totalSales) * 100).toFixed(1) : 0}%
           </p>
         </div>
       </div>
@@ -318,6 +424,37 @@ function AdvancedReports() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
             <h3 className="text-base sm:text-lg font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">Sales Trend</h3>
             <p className="text-gray-500 dark:text-gray-400 text-center py-6 sm:py-8 text-sm sm:text-base">No sales data available for this period</p>
+          </div>
+        )}
+
+        {/* Peak Hours Analysis */}
+        {peakHours.length > 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">Peak Sales Hours</h3>
+            <div className="space-y-3">
+              {peakHours.map((item, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm text-gray-800 dark:text-white">{item.hour}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{item.count} transactions</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-blue-600 dark:text-blue-400">KSH {item.sales.toFixed(2)}</div>
+                    <div className="text-xs text-green-600 dark:text-green-400">Profit: KSH {item.profit.toFixed(2)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-800 dark:text-white mb-3 sm:mb-4">Peak Sales Hours</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-center py-6 sm:py-8 text-sm sm:text-base">No hourly sales data available</p>
           </div>
         )}
 

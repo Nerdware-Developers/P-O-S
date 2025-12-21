@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { productsAPI, salesAPI } from '../utils/api'
+import { useNotification } from './NotificationManager'
 import { getCurrentUser } from '../utils/auth'
 
 function SalesScreen() {
+  const { showSuccess, showError, showWarning } = useNotification()
   const [products, setProducts] = useState([])
   const [cart, setCart] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -183,7 +185,7 @@ function SalesScreen() {
 
   const handleCheckout = async () => {
     if (cart.length === 0) {
-      alert('Cart is empty!')
+      showWarning('Cart is empty!')
       return
     }
 
@@ -235,11 +237,11 @@ function SalesScreen() {
         }
       }
 
-      alert('Sale completed successfully!')
+      showSuccess('Sale completed successfully!')
       setCart([])
       loadProducts() // Reload to update stock
     } catch (err) {
-      alert('Failed to complete sale. Please try again.')
+      showError('Failed to complete sale. Please try again.')
       console.error(err)
     } finally {
       setCheckingOut(false)
@@ -252,6 +254,11 @@ function SalesScreen() {
     const nameMatch = product.name.toLowerCase().includes(searchLower)
     const categoryMatch = product.category?.toLowerCase().includes(searchLower)
     return nameMatch || categoryMatch
+  }).sort((a, b) => {
+    // Sort alphabetically by name
+    const nameA = (a.name || '').toLowerCase()
+    const nameB = (b.name || '').toLowerCase()
+    return nameA.localeCompare(nameB)
   }) : []
   
   console.log('Products state:', products, 'Filtered:', filteredProducts)
@@ -394,7 +401,7 @@ function SalesScreen() {
                 <button
                   onClick={handleCheckout}
                   disabled={checkingOut}
-                  className="w-full mt-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="mt-4 py-3 px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {checkingOut ? 'Processing...' : 'Checkout'}
                 </button>

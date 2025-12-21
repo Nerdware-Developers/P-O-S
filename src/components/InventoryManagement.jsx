@@ -1,14 +1,24 @@
 import React, { useState, useEffect } from 'react'
-import { productsAPI } from '../utils/api'
+import { productsAPI, suppliersAPI, priceHistoryAPI } from '../utils/api'
+import CategoryItem from './CategoryItem'
+import { useNotification } from './NotificationManager'
 
 function InventoryManagement() {
+  const { showError, showSuccess, showWarning, showConfirm } = useNotification()
   const [products, setProducts] = useState([])
+  const [suppliers, setSuppliers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showModal, setShowModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
+  const [stockFilter, setStockFilter] = useState('all') // all, inStock, lowStock, outOfStock
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' })
+  const [sortBy, setSortBy] = useState('name') // name, price, stock, category
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+  const [showCategoryManager, setShowCategoryManager] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     price: '',
@@ -20,11 +30,32 @@ function InventoryManagement() {
     image: '',
     size: '',
     color: '',
+    supplierId: '',
+    supplierName: '',
   })
 
   useEffect(() => {
     loadProducts()
+    loadSuppliers()
   }, [])
+
+  const loadSuppliers = async () => {
+    try {
+      const data = await suppliersAPI.getAll()
+      let suppliersList = []
+      if (data && data.success && Array.isArray(data.suppliers)) {
+        suppliersList = data.suppliers
+      } else if (Array.isArray(data.suppliers)) {
+        suppliersList = data.suppliers
+      } else if (Array.isArray(data)) {
+        suppliersList = data
+      }
+      setSuppliers(Array.isArray(suppliersList) ? suppliersList : [])
+    } catch (err) {
+      console.error('Failed to load suppliers:', err)
+      setSuppliers([])
+    }
+  }
 
   const loadProducts = async () => {
     try {
@@ -64,6 +95,8 @@ function InventoryManagement() {
         image: product.image || '',
         size: product.size || '',
         color: product.color || '',
+        supplierId: product.supplierId || '',
+        supplierName: product.supplierName || '',
       })
     } else {
       setEditingProduct(null)
@@ -78,6 +111,8 @@ function InventoryManagement() {
         image: '',
         size: '',
         color: '',
+        supplierId: '',
+        supplierName: '',
       })
     }
     setShowModal(true)
@@ -97,12 +132,15 @@ function InventoryManagement() {
       image: '',
       size: '',
       color: '',
+      supplierId: '',
+      supplierName: '',
     })
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
+      const selectedSupplier = suppliers.find(s => s.id === formData.supplierId)
       const productData = {
         name: formData.name,
         price: parseFloat(formData.price),
@@ -114,19 +152,40 @@ function InventoryManagement() {
         image: formData.image,
         size: formData.size,
         color: formData.color,
+        supplierId: formData.supplierId || '',
+        supplierName: selectedSupplier ? selectedSupplier.name : '',
       }
 
       if (editingProduct) {
-        await productsAPI.update(editingProduct.id, { ...editingProduct, ...productData })
+        // Check if price changed for price history
+        const oldPrice = parseFloat(editingProduct.price) || 0
+        const newPrice = parseFloat(productData.price) || 0
+        const oldBuyingPrice = parseFloat(editingProduct.buyingPrice) || 0
+        const newBuyingPrice = parseFloat(productData.buyingPrice) || 0
+        
+        // Ensure supplierId and supplierName are explicitly included in the update
+        const updateData = {
+          ...editingProduct,
+          ...productData,
+          supplierId: productData.supplierId || '',
+          supplierName: productData.supplierName || '',
+        }
+        await productsAPI.update(editingProduct.id, updateData)
+        
+        // Reload price history if price changed
+        if (oldPrice !== newPrice || oldBuyingPrice !== newBuyingPrice) {
+          loadPriceHistory(editingProduct.id)
+        }
       } else {
         await productsAPI.create(productData)
       }
 
       handleCloseModal()
+      showSuccess(editingProduct ? 'Product updated successfully!' : 'Product created successfully!')
       loadProducts()
     } catch (err) {
       const errorMessage = err.message || 'Unknown error occurred'
-      alert(`Failed to save product: ${errorMessage}\n\nCheck the browser console (F12) for more details.`)
+      showError(`Failed to save product: ${errorMessage}. Check the browser console (F12) for more details.`)
       console.error('Product save error:', err)
     }
   }
@@ -140,7 +199,7 @@ function InventoryManagement() {
       await productsAPI.delete(id)
       loadProducts()
     } catch (err) {
-      alert('Failed to delete product. Please try again.')
+      showError('Failed to delete product. Please try again.')
       console.error(err)
     }
   }
@@ -148,7 +207,9 @@ function InventoryManagement() {
   // Ensure products is always an array
   const productsArray = Array.isArray(products) ? products : []
   
-  const lowStockProducts = Array.isArray(productsArray) ? productsArray.filter(p => p.stock < 5) : []
+  // Get low stock threshold from localStorage or use default
+  const lowStockThreshold = parseInt(localStorage.getItem('lowStockThreshold')) || 5
+  const lowStockProducts = Array.isArray(productsArray) ? productsArray.filter(p => (p.stock || 0) < lowStockThreshold) : []
 
   // Calculate shop value (total inventory value)
   const shopValue = Array.isArray(productsArray) ? productsArray.reduce((total, product) => {
@@ -163,12 +224,112 @@ function InventoryManagement() {
     .filter(cat => cat && cat.trim() !== '')
   )].sort() : []
 
-  // Filter products based on search and category
+  // Category management functions
+  const handleAddCategory = () => {
+    if (newCategoryName.trim() && !existingCategories.includes(newCategoryName.trim())) {
+      // Category will be available when a product is created/edited with this category
+      setNewCategoryName('')
+      showInfo(`Category "${newCategoryName.trim()}" will be available when you create or edit a product with this category.`)
+    } else if (existingCategories.includes(newCategoryName.trim())) {
+      showWarning('This category already exists!')
+    }
+  }
+
+  const handleDeleteCategory = async (categoryToDelete) => {
+    if (!window.confirm(`Delete category "${categoryToDelete}"? Products with this category will be set to "Uncategorized".`)) {
+      return
+    }
+
+    try {
+      // Update all products with this category to remove it
+      const productsToUpdate = productsArray.filter(p => p.category === categoryToDelete)
+      for (const product of productsToUpdate) {
+        await productsAPI.update(product.id, {
+          ...product,
+          category: ''
+        })
+      }
+      loadProducts()
+      showSuccess(`Category "${categoryToDelete}" deleted. Products updated.`)
+    } catch (err) {
+      showError('Failed to delete category. Please try again.')
+      console.error(err)
+    }
+  }
+
+  const handleRenameCategory = async (oldCategory, newCategoryName) => {
+    if (!newCategoryName.trim() || newCategoryName.trim() === oldCategory) {
+      return
+    }
+
+    if (existingCategories.includes(newCategoryName.trim())) {
+      showWarning('This category name already exists!')
+      return
+    }
+
+    showConfirm(
+      `Rename category "${oldCategory}" to "${newCategoryName.trim()}"?`,
+      async () => {
+        try {
+          // Update all products with this category
+          const productsToUpdate = productsArray.filter(p => p.category === oldCategory)
+          for (const product of productsToUpdate) {
+            await productsAPI.update(product.id, {
+              ...product,
+              category: newCategoryName.trim()
+            })
+          }
+          loadProducts()
+          showSuccess('Category renamed successfully!')
+        } catch (err) {
+          showError('Failed to rename category. Please try again.')
+          console.error(err)
+        }
+      }
+    )
+  }
+
+  // Filter products based on search, category, stock, and price, then sort
   const filteredProducts = Array.isArray(productsArray) ? productsArray.filter(product => {
     const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.description?.toLowerCase().includes(searchTerm.toLowerCase())
+                         product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.category?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory
-    return matchesSearch && matchesCategory
+    
+    // Stock filter
+    const stock = product.stock || 0
+    let matchesStock = true
+    if (stockFilter === 'inStock') matchesStock = stock > lowStockThreshold
+    else if (stockFilter === 'lowStock') matchesStock = stock > 0 && stock <= lowStockThreshold
+    else if (stockFilter === 'outOfStock') matchesStock = stock === 0
+    
+    // Price range filter
+    const price = parseFloat(product.price) || 0
+    const matchesMinPrice = !priceRange.min || price >= parseFloat(priceRange.min)
+    const matchesMaxPrice = !priceRange.max || price <= parseFloat(priceRange.max)
+    
+    return matchesSearch && matchesCategory && matchesStock && matchesMinPrice && matchesMaxPrice
+  }).sort((a, b) => {
+    // Sort by selected option
+    switch (sortBy) {
+      case 'price':
+        return (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0) // High to low
+      case 'priceAsc':
+        return (parseFloat(a.price) || 0) - (parseFloat(b.price) || 0) // Low to high
+      case 'stock':
+        return (b.stock || 0) - (a.stock || 0) // High to low
+      case 'stockAsc':
+        return (a.stock || 0) - (b.stock || 0) // Low to high
+      case 'category':
+        const catA = (a.category || '').toLowerCase()
+        const catB = (b.category || '').toLowerCase()
+        return catA.localeCompare(catB)
+      case 'name':
+      default:
+        const nameA = (a.name || '').toLowerCase()
+        const nameB = (b.name || '').toLowerCase()
+        return nameA.localeCompare(nameB)
+    }
   }) : []
 
   return (
@@ -177,7 +338,7 @@ function InventoryManagement() {
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">Inventory Management</h2>
         <button
           onClick={() => handleOpenModal()}
-          className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors text-sm sm:text-base"
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors text-sm sm:text-base"
         >
           + Add Product
         </button>
@@ -207,33 +368,186 @@ function InventoryManagement() {
 
       {lowStockProducts.length > 0 && (
         <div className="mb-4 p-4 bg-yellow-100 dark:bg-yellow-900 border border-yellow-400 text-yellow-700 dark:text-yellow-300 rounded">
-          <strong>Low Stock Warning:</strong> {lowStockProducts.length} product(s) have stock below 5 units.
+          <div className="flex justify-between items-start">
+            <div>
+              <strong>⚠️ Low Stock Warning:</strong> {lowStockProducts.length} product(s) have stock below {lowStockThreshold} units.
+              <p className="text-sm mt-1">Configure threshold in Notifications (bell icon)</p>
+            </div>
+            <button
+              onClick={() => {
+                setStockFilter('lowStock')
+                setShowAdvancedFilters(true)
+              }}
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              View All
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Category Manager */}
+      <div className="mb-4 flex justify-end">
+        <button
+          onClick={() => setShowCategoryManager(!showCategoryManager)}
+          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors text-sm sm:text-base"
+        >
+          {showCategoryManager ? 'Hide' : 'Manage'} Categories
+        </button>
+      </div>
+
+      {showCategoryManager && (
+        <div className="mb-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Category Management</h3>
+          
+          {/* Add New Category */}
+          <div className="mb-4 flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              placeholder="New category name..."
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
+              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+            />
+            <button
+              onClick={handleAddCategory}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors"
+            >
+              Add Category
+            </button>
+          </div>
+
+          {/* Categories List */}
+          <div className="space-y-2">
+            <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              Existing Categories ({existingCategories.length})
+            </h4>
+            {existingCategories.length === 0 ? (
+              <p className="text-gray-500 dark:text-gray-400 text-sm">No categories yet. Add one above!</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {existingCategories.map((category, index) => {
+                  const productsInCategory = productsArray.filter(p => p.category === category).length
+                  return (
+                    <CategoryItem
+                      key={index}
+                      category={category}
+                      productCount={productsInCategory}
+                      onDelete={() => handleDeleteCategory(category)}
+                      onRename={(newName) => handleRenameCategory(category, newName)}
+                    />
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Search and Filter */}
-      <div className="mb-4 space-y-4 md:space-y-0 md:flex md:gap-4">
-        <div className="flex-1">
-          <input
-            type="text"
-            placeholder="Search products by name or description..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-          />
-        </div>
-        <div className="md:w-48">
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+      <div className="mb-4 space-y-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="Search products by name, description, or category..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
+          <div className="sm:w-48">
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="all">All Categories</option>
+              {existingCategories.map((category, index) => (
+                <option key={index} value={category}>{category}</option>
+              ))}
+            </select>
+          </div>
+          <div className="sm:w-48">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="name">Sort: Name (A-Z)</option>
+              <option value="price">Sort: Price (High-Low)</option>
+              <option value="priceAsc">Sort: Price (Low-High)</option>
+              <option value="stock">Sort: Stock (High-Low)</option>
+              <option value="stockAsc">Sort: Stock (Low-High)</option>
+              <option value="category">Sort: Category</option>
+            </select>
+          </div>
+          <button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-700 dark:text-white"
           >
-            <option value="all">All Categories</option>
-            {existingCategories.map((category, index) => (
-              <option key={index} value={category}>{category}</option>
-            ))}
-          </select>
+            {showAdvancedFilters ? 'Hide' : 'Advanced'} Filters
+          </button>
         </div>
+
+        {/* Advanced Filters */}
+        {showAdvancedFilters && (
+          <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Stock Status
+                </label>
+                <select
+                  value={stockFilter}
+                  onChange={(e) => setStockFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="all">All Stock Levels</option>
+                  <option value="inStock">In Stock (&gt;{lowStockThreshold})</option>
+                  <option value="lowStock">Low Stock (1-{lowStockThreshold})</option>
+                  <option value="outOfStock">Out of Stock (0)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Min Price (KSH)
+                </label>
+                <input
+                  type="number"
+                  placeholder="0"
+                  value={priceRange.min}
+                  onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Max Price (KSH)
+                </label>
+                <input
+                  type="number"
+                  placeholder="No limit"
+                  value={priceRange.max}
+                  onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+            </div>
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={() => {
+                  setPriceRange({ min: '', max: '' })
+                  setStockFilter('all')
+                }}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -250,8 +564,8 @@ function InventoryManagement() {
               filteredProducts.map((product) => (
                 <div
                   key={product.id}
-                  className={`bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 ${
-                    product.stock < 5 ? 'border-2 border-yellow-400' : 'border border-gray-200 dark:border-gray-700'
+                    className={`bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 ${
+                    (product.stock || 0) < lowStockThreshold ? 'border-2 border-yellow-400' : 'border border-gray-200 dark:border-gray-700'
                   }`}
                 >
                   <div className="flex justify-between items-start mb-3">
@@ -286,7 +600,7 @@ function InventoryManagement() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500 dark:text-gray-400">Stock:</span>
-                      <span className={`font-semibold ${product.stock < 5 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                      <span className={`font-semibold ${(product.stock || 0) < lowStockThreshold ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
                         {product.stock} {product.unitType || 'pcs'}
                       </span>
                     </div>
@@ -296,6 +610,14 @@ function InventoryManagement() {
                         {product.category || 'N/A'}
                       </span>
                     </div>
+                    {product.supplierName && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 dark:text-gray-400">Supplier:</span>
+                        <span className="font-semibold text-blue-600 dark:text-blue-400">
+                          {product.supplierName}
+                        </span>
+                      </div>
+                    )}
                     {(product.size || product.color) && (
                       <div className="flex justify-between pt-1 border-t border-gray-200 dark:border-gray-700">
                         <span className="text-gray-500 dark:text-gray-400">Variants:</span>
@@ -350,7 +672,7 @@ function InventoryManagement() {
                     filteredProducts.map((product) => (
                     <tr
                       key={product.id}
-                      className={product.stock < 5 ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}
+                      className={(product.stock || 0) < lowStockThreshold ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}
                     >
                       <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                         {product.name}
@@ -362,7 +684,7 @@ function InventoryManagement() {
                         KSH {(parseFloat(product.buyingPrice) || 0).toFixed(2)}
                       </td>
                       <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        <span className={product.stock < 5 ? 'text-red-600 dark:text-red-400 font-semibold' : ''}>
+                        <span className={(product.stock || 0) < lowStockThreshold ? 'text-red-600 dark:text-red-400 font-semibold' : ''}>
                           {product.stock} {product.unitType || 'pcs'}
                         </span>
                       </td>
@@ -377,7 +699,14 @@ function InventoryManagement() {
                         )}
                       </td>
                       <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {product.category || 'N/A'}
+                        <div>
+                          <div>{product.category || 'N/A'}</div>
+                          {product.supplierName && (
+                            <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                              📦 {product.supplierName}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
@@ -591,6 +920,31 @@ function InventoryManagement() {
                   </p>
                 )}
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Supplier
+                </label>
+                <select
+                  value={formData.supplierId}
+                  onChange={(e) => {
+                    const selectedSupplier = suppliers.find(s => s.id === e.target.value)
+                    setFormData({
+                      ...formData,
+                      supplierId: e.target.value,
+                      supplierName: selectedSupplier ? selectedSupplier.name : ''
+                    })
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="">No Supplier (Optional)</option>
+                  {suppliers.map(supplier => (
+                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Select supplier for this product. When stock runs low, you'll know which supplier to order from.
+                </p>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -628,6 +982,55 @@ function InventoryManagement() {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 />
               </div>
+              
+              {/* Price History Section - Only show when editing */}
+              {editingProduct && (
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Price History</h4>
+                  {loadingPriceHistory ? (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Loading price history...</p>
+                  ) : priceHistory.length === 0 ? (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">No price changes recorded yet.</p>
+                  ) : (
+                    <div className="max-h-40 overflow-y-auto space-y-2">
+                      {priceHistory.slice(0, 5).map((entry, index) => (
+                        <div key={index} className="text-xs bg-gray-50 dark:bg-gray-700 p-2 rounded">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-gray-600 dark:text-gray-400">
+                              {new Date(entry.createdAt).toLocaleDateString()}
+                            </span>
+                            {entry.reason && (
+                              <span className="text-gray-500 dark:text-gray-500 text-xs italic">{entry.reason}</span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-gray-500 dark:text-gray-400">Selling Price: </span>
+                              <span className="font-medium text-gray-700 dark:text-gray-300">
+                                KSH {entry.oldPrice.toFixed(2)} → KSH {entry.newPrice.toFixed(2)}
+                              </span>
+                            </div>
+                            {entry.oldBuyingPrice !== entry.newBuyingPrice && (
+                              <div>
+                                <span className="text-gray-500 dark:text-gray-400">Buying Price: </span>
+                                <span className="font-medium text-gray-700 dark:text-gray-300">
+                                  KSH {entry.oldBuyingPrice.toFixed(2)} → KSH {entry.newBuyingPrice.toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {priceHistory.length > 5 && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                          Showing 5 most recent. {priceHistory.length - 5} more...
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              
               <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
                 <button
                   type="button"

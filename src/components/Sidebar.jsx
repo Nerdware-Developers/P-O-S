@@ -6,9 +6,13 @@ function Sidebar({ isOpen, onClose }) {
 
   const menuItems = [
     { path: '/', label: 'Sales', icon: '🛒' },
+    { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/products', label: 'Products', icon: '🛍️' },
     { path: '/inventory', label: 'Inventory', icon: '📦' },
+    { path: '/suppliers', label: 'Suppliers', icon: '🏢' },
+    { path: '/orders', label: 'Purchase Orders', icon: '📋' },
     { path: '/expenses', label: 'Expenses', icon: '💰' },
+    { path: '/targets', label: 'Sales Targets', icon: '🎯' },
     { path: '/reports', label: 'Reports', icon: '📊' },
     { path: '/analytics', label: 'Analytics', icon: '📈' },
   ]

@@ -22,7 +22,12 @@ const SHEET_NAMES = {
   SALES: 'Sales',
   USERS: 'Users',
   EXPENSES: 'Expenses',
-  SUMMARY: 'Summary'
+  SUMMARY: 'Summary',
+  SUPPLIERS: 'Suppliers',
+  ORDERS: 'Orders',
+  DAILY_CLOSINGS: 'DailyClosings',
+  PRICE_HISTORY: 'PriceHistory',
+  SALES_TARGETS: 'SalesTargets'
 };
 
 // ============ HELPER FUNCTIONS ============
@@ -47,7 +52,7 @@ function getSheet(sheetName) {
       sheet = ss.insertSheet(sheetName);
       // Initialize headers if sheet is new
       if (sheetName === SHEET_NAMES.PRODUCTS) {
-        sheet.appendRow(['id', 'name', 'price', 'buyingPrice', 'stock', 'unitType', 'category', 'description', 'image', 'size', 'color', 'createdAt', 'updatedAt']);
+        sheet.appendRow(['id', 'name', 'price', 'buyingPrice', 'stock', 'unitType', 'category', 'description', 'image', 'size', 'color', 'supplierId', 'supplierName', 'createdAt', 'updatedAt']);
       } else if (sheetName === SHEET_NAMES.SALES) {
         sheet.appendRow(['id', 'items', 'subtotal', 'total', 'profit', 'userId', 'userName', 'timestamp', 'createdAt']);
       } else if (sheetName === SHEET_NAMES.SUMMARY) {
@@ -56,6 +61,16 @@ function getSheet(sheetName) {
         sheet.appendRow(['id', 'email', 'password', 'name', 'role', 'createdAt']);
       } else if (sheetName === SHEET_NAMES.EXPENSES) {
         sheet.appendRow(['id', 'description', 'category', 'amount', 'date', 'paymentMethod', 'notes', 'status', 'createdAt']);
+      } else if (sheetName === SHEET_NAMES.SUPPLIERS) {
+        sheet.appendRow(['id', 'name', 'contactPerson', 'email', 'phone', 'address', 'notes', 'createdAt', 'updatedAt']);
+      } else if (sheetName === SHEET_NAMES.ORDERS) {
+        sheet.appendRow(['id', 'supplierId', 'supplierName', 'items', 'status', 'orderDate', 'expectedDate', 'totalAmount', 'notes', 'createdAt', 'updatedAt']);
+      } else if (sheetName === SHEET_NAMES.DAILY_CLOSINGS) {
+        sheet.appendRow(['id', 'date', 'cash', 'float', 'mpesa', 'notes', 'createdAt', 'updatedAt']);
+      } else if (sheetName === SHEET_NAMES.PRICE_HISTORY) {
+        sheet.appendRow(['id', 'productId', 'productName', 'oldPrice', 'newPrice', 'oldBuyingPrice', 'newBuyingPrice', 'changedBy', 'reason', 'createdAt']);
+      } else if (sheetName === SHEET_NAMES.SALES_TARGETS) {
+        sheet.appendRow(['id', 'type', 'period', 'targetAmount', 'currentAmount', 'startDate', 'endDate', 'status', 'createdAt', 'updatedAt']);
       }
     }
     return sheet;
@@ -246,6 +261,8 @@ function createProduct(productData) {
     image: productData.image || '',
     size: productData.size || '',
     color: productData.color || '',
+    supplierId: productData.supplierId || '',
+    supplierName: productData.supplierName || '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -258,7 +275,26 @@ function createProduct(productData) {
 
 function updateProduct(id, productData) {
   const sheet = getSheet(SHEET_NAMES.PRODUCTS);
-  const headers = getHeaders(sheet);
+  let headers = getHeaders(sheet);
+  
+  // Ensure supplierId and supplierName columns exist (for sheets created before these columns were added)
+  const requiredHeaders = ['supplierId', 'supplierName'];
+  let headersUpdated = false;
+  requiredHeaders.forEach(header => {
+    if (!headers.includes(header)) {
+      // Add the missing header column
+      const lastCol = sheet.getLastColumn();
+      sheet.getRange(1, lastCol + 1).setValue(header);
+      headers.push(header);
+      headersUpdated = true;
+    }
+  });
+  
+  // If headers were updated, we need to get them again
+  if (headersUpdated) {
+    headers = getHeaders(sheet);
+  }
+  
   const data = getDataRange(sheet);
   
   const rowIndex = data.findIndex(row => {
@@ -271,10 +307,47 @@ function updateProduct(id, productData) {
   }
   
   const existingProduct = rowToObject(data[rowIndex], headers);
+  
+  // Track price changes for price history
+  const oldPrice = parseFloat(existingProduct.price) || 0;
+  const newPrice = parseFloat(productData.price) !== undefined ? parseFloat(productData.price) : oldPrice;
+  const oldBuyingPrice = parseFloat(existingProduct.buyingPrice) || 0;
+  const newBuyingPrice = parseFloat(productData.buyingPrice) !== undefined ? parseFloat(productData.buyingPrice) : oldBuyingPrice;
+  
+  // Record price history if price or buying price changed
+  if (oldPrice !== newPrice || oldBuyingPrice !== newBuyingPrice) {
+    try {
+      const priceHistorySheet = getSheet(SHEET_NAMES.PRICE_HISTORY);
+      const priceHistoryHeaders = getHeaders(priceHistorySheet);
+      
+      const priceHistoryEntry = {
+        id: generateId(),
+        productId: id,
+        productName: existingProduct.name || '',
+        oldPrice: oldPrice,
+        newPrice: newPrice,
+        oldBuyingPrice: oldBuyingPrice,
+        newBuyingPrice: newBuyingPrice,
+        changedBy: productData.changedBy || '',
+        reason: productData.priceChangeReason || '',
+        createdAt: new Date().toISOString()
+      };
+      
+      const priceHistoryRow = objectToRow(priceHistoryEntry, priceHistoryHeaders);
+      priceHistorySheet.appendRow(priceHistoryRow);
+    } catch (e) {
+      console.error('Error recording price history:', e);
+      // Don't fail the update if price history fails
+    }
+  }
+  
   const updatedProduct = {
     ...existingProduct,
     ...productData,
     id: existingProduct.id, // Preserve ID
+    // Explicitly ensure supplierId and supplierName are included
+    supplierId: productData.supplierId !== undefined ? productData.supplierId : (existingProduct.supplierId || ''),
+    supplierName: productData.supplierName !== undefined ? productData.supplierName : (existingProduct.supplierName || ''),
     updatedAt: new Date().toISOString()
   };
   
@@ -923,6 +996,642 @@ function createUser(userData) {
   return { success: true, user: newUser };
 }
 
+// ============ SUPPLIERS API ============
+
+function getSuppliers() {
+  const sheet = getSheet(SHEET_NAMES.SUPPLIERS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const suppliers = data.map(row => rowToObject(row, headers));
+  
+  return { success: true, suppliers };
+}
+
+function getSupplierById(id) {
+  const sheet = getSheet(SHEET_NAMES.SUPPLIERS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const supplier = data.find(row => {
+    const obj = rowToObject(row, headers);
+    return obj.id === id;
+  });
+  
+  if (!supplier) {
+    throw new Error('Supplier not found');
+  }
+  
+  return { success: true, supplier: rowToObject(supplier, headers) };
+}
+
+function createSupplier(supplierData) {
+  const sheet = getSheet(SHEET_NAMES.SUPPLIERS);
+  const headers = getHeaders(sheet);
+  
+  const newSupplier = {
+    id: generateId(),
+    name: supplierData.name || '',
+    contactPerson: supplierData.contactPerson || '',
+    email: supplierData.email || '',
+    phone: supplierData.phone || '',
+    address: supplierData.address || '',
+    notes: supplierData.notes || '',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  
+  const row = objectToRow(newSupplier, headers);
+  sheet.appendRow(row);
+  
+  return { success: true, supplier: newSupplier };
+}
+
+function updateSupplier(id, supplierData) {
+  const sheet = getSheet(SHEET_NAMES.SUPPLIERS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const rowIndex = data.findIndex(row => {
+    const obj = rowToObject(row, headers);
+    return obj.id === id;
+  });
+  
+  if (rowIndex === -1) {
+    throw new Error('Supplier not found');
+  }
+  
+  const existingSupplier = rowToObject(data[rowIndex], headers);
+  const updatedSupplier = {
+    ...existingSupplier,
+    ...supplierData,
+    id: existingSupplier.id,
+    updatedAt: new Date().toISOString()
+  };
+  
+  const row = objectToRow(updatedSupplier, headers);
+  sheet.getRange(rowIndex + 2, 1, 1, headers.length).setValues([row]);
+  
+  return { success: true, supplier: updatedSupplier };
+}
+
+function deleteSupplier(id) {
+  const sheet = getSheet(SHEET_NAMES.SUPPLIERS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const rowIndex = data.findIndex(row => {
+    const obj = rowToObject(row, headers);
+    return obj.id === id;
+  });
+  
+  if (rowIndex === -1) {
+    throw new Error('Supplier not found');
+  }
+  
+  sheet.deleteRow(rowIndex + 2);
+  
+  return { success: true, message: 'Supplier deleted' };
+}
+
+// ============ ORDERS API ============
+
+function getOrders() {
+  const sheet = getSheet(SHEET_NAMES.ORDERS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const orders = data.map(row => {
+    const order = rowToObject(row, headers);
+    // Parse items if it's a string
+    if (typeof order.items === 'string') {
+      try {
+        order.items = JSON.parse(order.items);
+      } catch (e) {
+        order.items = [];
+      }
+    } else if (!Array.isArray(order.items)) {
+      order.items = [];
+    }
+    order.totalAmount = parseFloat(order.totalAmount) || 0;
+    return order;
+  });
+  
+  return { success: true, orders };
+}
+
+function getOrderById(id) {
+  const sheet = getSheet(SHEET_NAMES.ORDERS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const order = data.find(row => {
+    const obj = rowToObject(row, headers);
+    return obj.id === id;
+  });
+  
+  if (!order) {
+    throw new Error('Order not found');
+  }
+  
+  const orderObj = rowToObject(order, headers);
+  if (typeof orderObj.items === 'string') {
+    try {
+      orderObj.items = JSON.parse(orderObj.items);
+    } catch (e) {
+      orderObj.items = [];
+    }
+  } else if (!Array.isArray(orderObj.items)) {
+    orderObj.items = [];
+  }
+  orderObj.totalAmount = parseFloat(orderObj.totalAmount) || 0;
+  
+  return { success: true, order: orderObj };
+}
+
+function createOrder(orderData) {
+  const sheet = getSheet(SHEET_NAMES.ORDERS);
+  const headers = getHeaders(sheet);
+  
+  // Parse items if it's a string
+  let items = orderData.items || [];
+  if (typeof items === 'string') {
+    try {
+      items = JSON.parse(items);
+    } catch (e) {
+      items = [];
+    }
+  }
+  if (!Array.isArray(items)) {
+    items = [];
+  }
+  
+  // Calculate total amount
+  const totalAmount = items.reduce((sum, item) => {
+    return sum + (parseFloat(item.price || item.buyingPrice || 0) * (item.quantity || 0));
+  }, 0);
+  
+  const newOrder = {
+    id: generateId(),
+    supplierId: orderData.supplierId || '',
+    supplierName: orderData.supplierName || '',
+    items: JSON.stringify(items),
+    status: orderData.status || 'pending',
+    orderDate: orderData.orderDate || new Date().toISOString().split('T')[0],
+    expectedDate: orderData.expectedDate || '',
+    totalAmount: totalAmount,
+    notes: orderData.notes || '',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  
+  const row = objectToRow(newOrder, headers);
+  sheet.appendRow(row);
+  
+  // Return items as array
+  newOrder.items = items;
+  
+  return { success: true, order: newOrder };
+}
+
+function updateOrder(id, orderData) {
+  const sheet = getSheet(SHEET_NAMES.ORDERS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const rowIndex = data.findIndex(row => {
+    const obj = rowToObject(row, headers);
+    return obj.id === id;
+  });
+  
+  if (rowIndex === -1) {
+    throw new Error('Order not found');
+  }
+  
+  const existingOrder = rowToObject(data[rowIndex], headers);
+  
+  // Handle items
+  let items = orderData.items !== undefined ? orderData.items : (existingOrder.items || []);
+  if (typeof items === 'string') {
+    try {
+      items = JSON.parse(items);
+    } catch (e) {
+      items = [];
+    }
+  }
+  if (!Array.isArray(items)) {
+    items = [];
+  }
+  
+  // Calculate total amount
+  const totalAmount = items.reduce((sum, item) => {
+    return sum + (parseFloat(item.price || item.buyingPrice || 0) * (item.quantity || 0));
+  }, 0);
+  
+  const updatedOrder = {
+    ...existingOrder,
+    ...orderData,
+    id: existingOrder.id,
+    items: JSON.stringify(items),
+    totalAmount: totalAmount,
+    updatedAt: new Date().toISOString()
+  };
+  
+  const row = objectToRow(updatedOrder, headers);
+  sheet.getRange(rowIndex + 2, 1, 1, headers.length).setValues([row]);
+  
+  // Return items as array
+  updatedOrder.items = items;
+  
+  return { success: true, order: updatedOrder };
+}
+
+function deleteOrder(id) {
+  const sheet = getSheet(SHEET_NAMES.ORDERS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const rowIndex = data.findIndex(row => {
+    const obj = rowToObject(row, headers);
+    return obj.id === id;
+  });
+  
+  if (rowIndex === -1) {
+    throw new Error('Order not found');
+  }
+  
+  sheet.deleteRow(rowIndex + 2);
+  
+  return { success: true, message: 'Order deleted' };
+}
+
+// ============ DAILY CLOSINGS API ============
+
+function getClosings(filters) {
+  const sheet = getSheet(SHEET_NAMES.DAILY_CLOSINGS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  let closings = data.map(row => {
+    const closing = rowToObject(row, headers);
+    closing.cash = parseFloat(closing.cash) || 0;
+    closing.float = parseFloat(closing.float) || 0;
+    closing.mpesa = parseFloat(closing.mpesa) || 0;
+    return closing;
+  });
+  
+  // Apply filters
+  if (filters && filters.date) {
+    closings = closings.filter(c => c.date === filters.date);
+  }
+  
+  // Sort by date descending (newest first)
+  closings.sort((a, b) => {
+    const dateA = a.date ? new Date(a.date).getTime() : 0;
+    const dateB = b.date ? new Date(b.date).getTime() : 0;
+    return dateB - dateA;
+  });
+  
+  return { success: true, closings };
+}
+
+function getClosingById(id) {
+  const sheet = getSheet(SHEET_NAMES.DAILY_CLOSINGS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const row = data.find(row => {
+    const obj = rowToObject(row, headers);
+    return obj.id === id;
+  });
+  
+  if (!row) {
+    throw new Error('Daily closing not found');
+  }
+  
+  const closing = rowToObject(row, headers);
+  closing.cash = parseFloat(closing.cash) || 0;
+  closing.float = parseFloat(closing.float) || 0;
+  closing.mpesa = parseFloat(closing.mpesa) || 0;
+  
+  return { success: true, closing };
+}
+
+function createClosing(closingData) {
+  const sheet = getSheet(SHEET_NAMES.DAILY_CLOSINGS);
+  const headers = getHeaders(sheet);
+  
+  const newClosing = {
+    id: generateId(),
+    date: closingData.date || new Date().toISOString().split('T')[0],
+    cash: parseFloat(closingData.cash) || 0,
+    float: parseFloat(closingData.float) || 0,
+    mpesa: parseFloat(closingData.mpesa) || 0,
+    notes: closingData.notes || '',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  
+  const row = objectToRow(newClosing, headers);
+  sheet.appendRow(row);
+  
+  return { success: true, closing: newClosing };
+}
+
+function updateClosing(id, closingData) {
+  const sheet = getSheet(SHEET_NAMES.DAILY_CLOSINGS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const rowIndex = data.findIndex(row => {
+    const obj = rowToObject(row, headers);
+    return obj.id === id;
+  });
+  
+  if (rowIndex === -1) {
+    throw new Error('Daily closing not found');
+  }
+  
+  const existingClosing = rowToObject(data[rowIndex], headers);
+  const updatedClosing = {
+    ...existingClosing,
+    ...closingData,
+    id: existingClosing.id,
+    cash: closingData.cash !== undefined ? parseFloat(closingData.cash) : parseFloat(existingClosing.cash) || 0,
+    float: closingData.float !== undefined ? parseFloat(closingData.float) : parseFloat(existingClosing.float) || 0,
+    mpesa: closingData.mpesa !== undefined ? parseFloat(closingData.mpesa) : parseFloat(existingClosing.mpesa) || 0,
+    updatedAt: new Date().toISOString()
+  };
+  
+  const row = objectToRow(updatedClosing, headers);
+  sheet.getRange(rowIndex + 2, 1, 1, headers.length).setValues([row]);
+  
+  return { success: true, closing: updatedClosing };
+}
+
+function deleteClosing(id) {
+  const sheet = getSheet(SHEET_NAMES.DAILY_CLOSINGS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const rowIndex = data.findIndex(row => {
+    const obj = rowToObject(row, headers);
+    return obj.id === id;
+  });
+  
+  if (rowIndex === -1) {
+    throw new Error('Daily closing not found');
+  }
+  
+  sheet.deleteRow(rowIndex + 2);
+  
+  return { success: true, message: 'Daily closing deleted' };
+}
+
+// ============ PRICE HISTORY API ============
+
+function getPriceHistory(filters) {
+  const sheet = getSheet(SHEET_NAMES.PRICE_HISTORY);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  let history = data.map(row => {
+    const entry = rowToObject(row, headers);
+    entry.oldPrice = parseFloat(entry.oldPrice) || 0;
+    entry.newPrice = parseFloat(entry.newPrice) || 0;
+    entry.oldBuyingPrice = parseFloat(entry.oldBuyingPrice) || 0;
+    entry.newBuyingPrice = parseFloat(entry.newBuyingPrice) || 0;
+    return entry;
+  });
+  
+  // Apply filters
+  if (filters && filters.productId) {
+    history = history.filter(entry => entry.productId === filters.productId);
+  }
+  
+  // Sort by date descending (newest first)
+  history.sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return dateB - dateA;
+  });
+  
+  return { success: true, history };
+}
+
+// ============ STOCK VALUATION ============
+
+function getStockValuation() {
+  const sheet = getSheet(SHEET_NAMES.PRODUCTS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  let totalCostValue = 0;
+  let totalRetailValue = 0;
+  let totalProducts = 0;
+  let totalStock = 0;
+  
+  data.forEach(row => {
+    const product = rowToObject(row, headers);
+    const stock = parseInt(product.stock) || 0;
+    const buyingPrice = parseFloat(product.buyingPrice) || 0;
+    const price = parseFloat(product.price) || 0;
+    
+    if (stock > 0) {
+      totalCostValue += stock * buyingPrice;
+      totalRetailValue += stock * price;
+      totalProducts++;
+      totalStock += stock;
+    }
+  });
+  
+  const averageMargin = totalRetailValue > 0 ? ((totalRetailValue - totalCostValue) / totalRetailValue * 100) : 0;
+  
+  return {
+    success: true,
+    valuation: {
+      totalCostValue: totalCostValue,
+      totalRetailValue: totalRetailValue,
+      totalProfit: totalRetailValue - totalCostValue,
+      averageMargin: averageMargin,
+      totalProducts: totalProducts,
+      totalStock: totalStock
+    }
+  };
+}
+
+// ============ SALES TARGETS API ============
+
+function getSalesTargets(filters) {
+  const sheet = getSheet(SHEET_NAMES.SALES_TARGETS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  let targets = data.map(row => {
+    const target = rowToObject(row, headers);
+    target.targetAmount = parseFloat(target.targetAmount) || 0;
+    target.currentAmount = parseFloat(target.currentAmount) || 0;
+    return target;
+  });
+  
+  // Apply filters
+  if (filters && filters.type) {
+    targets = targets.filter(t => t.type === filters.type);
+  }
+  if (filters && filters.status) {
+    targets = targets.filter(t => t.status === filters.status);
+  }
+  
+  // Sort by endDate descending (newest first)
+  targets.sort((a, b) => {
+    const dateA = a.endDate ? new Date(a.endDate).getTime() : 0;
+    const dateB = b.endDate ? new Date(b.endDate).getTime() : 0;
+    return dateB - dateA;
+  });
+  
+  return { success: true, targets };
+}
+
+function getSalesTargetById(id) {
+  const sheet = getSheet(SHEET_NAMES.SALES_TARGETS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const row = data.find(row => {
+    const obj = rowToObject(row, headers);
+    return obj.id === id;
+  });
+  
+  if (!row) {
+    throw new Error('Sales target not found');
+  }
+  
+  const target = rowToObject(row, headers);
+  target.targetAmount = parseFloat(target.targetAmount) || 0;
+  target.currentAmount = parseFloat(target.currentAmount) || 0;
+  
+  return { success: true, target };
+}
+
+function createSalesTarget(targetData) {
+  const sheet = getSheet(SHEET_NAMES.SALES_TARGETS);
+  const headers = getHeaders(sheet);
+  
+  const newTarget = {
+    id: generateId(),
+    type: targetData.type || 'daily', // daily, weekly, monthly, yearly
+    period: targetData.period || '',
+    targetAmount: parseFloat(targetData.targetAmount) || 0,
+    currentAmount: 0, // Will be calculated from sales
+    startDate: targetData.startDate || new Date().toISOString().split('T')[0],
+    endDate: targetData.endDate || new Date().toISOString().split('T')[0],
+    status: targetData.status || 'active', // active, completed, cancelled
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  
+  const row = objectToRow(newTarget, headers);
+  sheet.appendRow(row);
+  
+  return { success: true, target: newTarget };
+}
+
+function updateSalesTarget(id, targetData) {
+  const sheet = getSheet(SHEET_NAMES.SALES_TARGETS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const rowIndex = data.findIndex(row => {
+    const obj = rowToObject(row, headers);
+    return obj.id === id;
+  });
+  
+  if (rowIndex === -1) {
+    throw new Error('Sales target not found');
+  }
+  
+  const existingTarget = rowToObject(data[rowIndex], headers);
+  const updatedTarget = {
+    ...existingTarget,
+    ...targetData,
+    id: existingTarget.id,
+    targetAmount: targetData.targetAmount !== undefined ? parseFloat(targetData.targetAmount) : parseFloat(existingTarget.targetAmount) || 0,
+    currentAmount: targetData.currentAmount !== undefined ? parseFloat(targetData.currentAmount) : parseFloat(existingTarget.currentAmount) || 0,
+    updatedAt: new Date().toISOString()
+  };
+  
+  const row = objectToRow(updatedTarget, headers);
+  sheet.getRange(rowIndex + 2, 1, 1, headers.length).setValues([row]);
+  
+  return { success: true, target: updatedTarget };
+}
+
+function deleteSalesTarget(id) {
+  const sheet = getSheet(SHEET_NAMES.SALES_TARGETS);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const rowIndex = data.findIndex(row => {
+    const obj = rowToObject(row, headers);
+    return obj.id === id;
+  });
+  
+  if (rowIndex === -1) {
+    throw new Error('Sales target not found');
+  }
+  
+  sheet.deleteRow(rowIndex + 2);
+  
+  return { success: true, message: 'Sales target deleted' };
+}
+
+// ============ EXPENSE ANALYTICS ============
+
+function getExpenseAnalytics(filters) {
+  const sheet = getSheet(SHEET_NAMES.EXPENSES);
+  const headers = getHeaders(sheet);
+  const data = getDataRange(sheet);
+  
+  const categoryTotals = {};
+  let totalExpenses = 0;
+  let totalCount = 0;
+  
+  data.forEach(row => {
+    const expense = rowToObject(row, headers);
+    const amount = parseFloat(expense.amount) || 0;
+    const category = expense.category || 'Uncategorized';
+    
+    if (!categoryTotals[category]) {
+      categoryTotals[category] = { total: 0, count: 0 };
+    }
+    
+    categoryTotals[category].total += amount;
+    categoryTotals[category].count += 1;
+    totalExpenses += amount;
+    totalCount += 1;
+  });
+  
+  // Convert to array and sort by total descending
+  const categoryAnalytics = Object.entries(categoryTotals)
+    .map(([category, data]) => ({
+      category,
+      total: data.total,
+      count: data.count,
+      percentage: totalExpenses > 0 ? (data.total / totalExpenses * 100) : 0
+    }))
+    .sort((a, b) => b.total - a.total);
+  
+  return {
+    success: true,
+    analytics: {
+      categoryBreakdown: categoryAnalytics,
+      totalExpenses: totalExpenses,
+      totalCount: totalCount,
+      averageExpense: totalCount > 0 ? totalExpenses / totalCount : 0
+    }
+  };
+}
+
 // ============ MAIN DOGET FUNCTION ============
 
 function doGet(e) {
@@ -1134,8 +1843,90 @@ function handleRequest(e, method = 'GET') {
       } else {
         result = { success: false, error: 'Invalid request method for summary' };
       }
+    } else if (endpoint === 'suppliers') {
+      if (method === 'GET') {
+        if (id) {
+          result = getSupplierById(id);
+        } else {
+          result = getSuppliers();
+        }
+      } else if (method === 'POST') {
+        result = createSupplier(requestData);
+      } else if (method === 'PUT' && id) {
+        result = updateSupplier(id, requestData);
+      } else if (method === 'DELETE' && id) {
+        result = deleteSupplier(id);
+      } else {
+        result = { success: false, error: 'Invalid request' };
+      }
+    } else if (endpoint === 'orders') {
+      if (method === 'GET') {
+        if (id) {
+          result = getOrderById(id);
+        } else {
+          result = getOrders();
+        }
+      } else if (method === 'POST') {
+        result = createOrder(requestData);
+      } else if (method === 'PUT' && id) {
+        result = updateOrder(id, requestData);
+      } else if (method === 'DELETE' && id) {
+        result = deleteOrder(id);
+      } else {
+        result = { success: false, error: 'Invalid request' };
+      }
+    } else if (endpoint === 'closings' || endpoint === 'dailyclosings') {
+      if (method === 'GET') {
+        if (id) {
+          result = getClosingById(id);
+        } else {
+          result = getClosings(e.parameter);
+        }
+      } else if (method === 'POST') {
+        result = createClosing(requestData);
+      } else if (method === 'PUT' && id) {
+        result = updateClosing(id, requestData);
+      } else if (method === 'DELETE' && id) {
+        result = deleteClosing(id);
+      } else {
+        result = { success: false, error: 'Invalid request method' };
+      }
+    } else if (endpoint === 'pricehistory' || endpoint === 'price-history') {
+      if (method === 'GET') {
+        result = getPriceHistory(e.parameter);
+      } else {
+        result = { success: false, error: 'Invalid request method for price history' };
+      }
+    } else if (endpoint === 'stockvaluation' || endpoint === 'stock-valuation') {
+      if (method === 'GET') {
+        result = getStockValuation();
+      } else {
+        result = { success: false, error: 'Invalid request method for stock valuation' };
+      }
+    } else if (endpoint === 'salestargets' || endpoint === 'sales-targets') {
+      if (method === 'GET') {
+        if (id) {
+          result = getSalesTargetById(id);
+        } else {
+          result = getSalesTargets(e.parameter);
+        }
+      } else if (method === 'POST') {
+        result = createSalesTarget(requestData);
+      } else if (method === 'PUT' && id) {
+        result = updateSalesTarget(id, requestData);
+      } else if (method === 'DELETE' && id) {
+        result = deleteSalesTarget(id);
+      } else {
+        result = { success: false, error: 'Invalid request method' };
+      }
+    } else if (endpoint === 'expenseanalytics' || endpoint === 'expense-analytics') {
+      if (method === 'GET') {
+        result = getExpenseAnalytics(e.parameter);
+      } else {
+        result = { success: false, error: 'Invalid request method for expense analytics' };
+      }
     } else {
-      result = { success: false, error: 'Invalid endpoint. Use ?endpoint=products|sales|users|expenses|summary' };
+      result = { success: false, error: 'Invalid endpoint. Use ?endpoint=products|sales|users|expenses|summary|suppliers|orders|closings|pricehistory|stockvaluation|salestargets|expenseanalytics' };
     }
     
     // Google Apps Script automatically handles CORS when "Who has access: Anyone" is set

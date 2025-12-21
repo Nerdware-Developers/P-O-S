@@ -289,5 +289,56 @@ export const summaryAPI = {
   get: () => apiCall('summary', 'GET'),
 }
 
+// Suppliers API
+export const suppliersAPI = {
+  getAll: () => apiCall('suppliers', 'GET'),
+  getById: (id) => apiCall('suppliers', 'GET', null, id),
+  create: (supplier) => apiCall('suppliers', 'POST', supplier),
+  update: (id, supplier) => apiCall('suppliers', 'PUT', supplier, id),
+  delete: (id) => apiCall('suppliers', 'DELETE', null, id),
+}
+
+// Orders API (Purchase Orders)
+export const ordersAPI = {
+  getAll: () => apiCall('orders', 'GET'),
+  getById: (id) => apiCall('orders', 'GET', null, id),
+  create: (order) => apiCall('orders', 'POST', order),
+  update: (id, order) => apiCall('orders', 'PUT', order, id),
+  delete: (id) => apiCall('orders', 'DELETE', null, id),
+}
+
+// Daily Closings API
+export const closingsAPI = {
+  getAll: (filters = {}) => apiCall('closings', 'GET', null, null, filters),
+  getById: (id) => apiCall('closings', 'GET', null, id),
+  create: (closing) => apiCall('closings', 'POST', closing),
+  update: (id, closing) => apiCall('closings', 'PUT', closing, id),
+  delete: (id) => apiCall('closings', 'DELETE', null, id),
+}
+
+// Price History API
+export const priceHistoryAPI = {
+  getAll: (filters = {}) => apiCall('pricehistory', 'GET', null, null, filters),
+}
+
+// Stock Valuation API
+export const stockValuationAPI = {
+  get: () => apiCall('stockvaluation', 'GET'),
+}
+
+// Sales Targets API
+export const salesTargetsAPI = {
+  getAll: (filters = {}) => apiCall('salestargets', 'GET', null, null, filters),
+  getById: (id) => apiCall('salestargets', 'GET', null, id),
+  create: (target) => apiCall('salestargets', 'POST', target),
+  update: (id, target) => apiCall('salestargets', 'PUT', target, id),
+  delete: (id) => apiCall('salestargets', 'DELETE', null, id),
+}
+
+// Expense Analytics API
+export const expenseAnalyticsAPI = {
+  get: (filters = {}) => apiCall('expenseanalytics', 'GET', null, null, filters),
+}
+
 export default apiCall
 

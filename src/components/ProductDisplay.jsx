@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { productsAPI, salesAPI } from '../utils/api'
+import { useNotification } from './NotificationManager'
 import { getCurrentUser } from '../utils/auth'
 
 function ProductDisplay() {
@@ -43,17 +44,22 @@ function ProductDisplay() {
   // Get unique categories - with safety check
   const categories = Array.isArray(products) ? ['all', ...new Set(products.map(p => p.category).filter(Boolean))] : ['all']
 
-  // Filter products - with safety check
+  // Filter products - with safety check, then sort alphabetically
   const filteredProducts = Array.isArray(products) ? products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.description?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory
     return matchesSearch && matchesCategory && product.stock > 0
+  }).sort((a, b) => {
+    // Sort alphabetically by name
+    const nameA = (a.name || '').toLowerCase()
+    const nameB = (b.name || '').toLowerCase()
+    return nameA.localeCompare(nameB)
   }) : []
 
   const handleSellProduct = async () => {
     if (!sellingProduct || quantity < 1 || quantity > sellingProduct.stock) {
-      alert('Invalid quantity')
+      showWarning('Invalid quantity')
       return
     }
 
@@ -93,12 +99,12 @@ function ProductDisplay() {
         stock: sellingProduct.stock - quantity,
       })
 
-      alert(`Successfully sold ${quantity} ${sellingProduct.unitType || 'pcs'} of ${sellingProduct.name}!`)
+      showSuccess(`Successfully sold ${quantity} ${sellingProduct.unitType || 'pcs'} of ${sellingProduct.name}!`)
       setSellingProduct(null)
       setQuantity(1)
       loadProducts() // Reload to update stock
     } catch (err) {
-      alert('Failed to complete sale. Please try again.')
+      showError('Failed to complete sale. Please try again.')
       console.error(err)
     } finally {
       setSelling(false)
@@ -253,7 +259,7 @@ function ProductDisplay() {
                 {product.stock > 0 && (
                   <button
                     onClick={() => setSellingProduct(product)}
-                    className="w-full mt-2 sm:mt-3 px-3 sm:px-4 py-2 text-sm sm:text-base bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
+                    className="mt-2 sm:mt-3 px-3 sm:px-4 py-2 text-sm sm:text-base bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
                   >
                     Sell Product
                   </button>

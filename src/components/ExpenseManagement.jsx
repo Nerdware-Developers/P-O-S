@@ -1,17 +1,28 @@
 import React, { useState, useEffect } from 'react'
 import { expensesAPI } from '../utils/api'
+import { useNotification } from './NotificationManager'
 
 function ExpenseManagement() {
   const [expenses, setExpenses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  // Get today's date in local timezone (YYYY-MM-DD format)
+  const getTodayDate = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  
   const [editingExpense, setEditingExpense] = useState(null)
+  const [selectedDate, setSelectedDate] = useState(getTodayDate()) // Selected date for viewing
   const [formData, setFormData] = useState({
     description: '',
     category: '',
     amount: '',
-    date: new Date().toISOString().split('T')[0],
+    date: getTodayDate(),
     paymentMethod: 'Cash',
     notes: '',
     status: 'paid', // 'paid' or 'pending'
@@ -32,7 +43,91 @@ function ExpenseManagement() {
 
   useEffect(() => {
     loadExpenses()
+    checkAndCarryForwardPendingExpenses()
+    
+    // Check for new day every minute to carry forward pending expenses and reset date
+    const dayCheckInterval = setInterval(() => {
+      const now = new Date()
+      const currentDay = now.getDate()
+      const storedDay = localStorage.getItem('lastExpenseReportDay')
+      const todayStr = getTodayDate()
+      
+      if (storedDay && parseInt(storedDay) !== currentDay) {
+        // New day has started, reset selected date to today and refresh
+        setSelectedDate(todayStr)
+        checkAndCarryForwardPendingExpenses()
+        loadExpenses()
+        localStorage.setItem('lastExpenseReportDay', currentDay.toString())
+      } else if (!storedDay) {
+        localStorage.setItem('lastExpenseReportDay', currentDay.toString())
+      } else {
+        // Still same day, just check for carry forward
+        checkAndCarryForwardPendingExpenses()
+      }
+    }, 60000) // Check every minute
+    
+    return () => {
+      clearInterval(dayCheckInterval)
+    }
   }, [])
+  
+  // Separate effect to ensure date is always today on mount
+  useEffect(() => {
+    const today = getTodayDate()
+    setSelectedDate(today)
+  }, [])
+  
+  const checkAndCarryForwardPendingExpenses = async () => {
+    try {
+      const today = getTodayDate()
+      const todayDate = new Date(today)
+      todayDate.setHours(0, 0, 0, 0)
+      
+      // Get all expenses
+      const allExpenses = await expensesAPI.getAll()
+      let expensesData = []
+      if (allExpenses && allExpenses.success && Array.isArray(allExpenses.expenses)) {
+        expensesData = allExpenses.expenses
+      } else if (Array.isArray(allExpenses.expenses)) {
+        expensesData = allExpenses.expenses
+      } else if (Array.isArray(allExpenses)) {
+        expensesData = allExpenses
+      }
+      
+      // Find pending expenses from previous days
+      const pendingFromPreviousDays = expensesData.filter(exp => {
+        if (!exp || exp.status !== 'pending' || !exp.date) return false
+        try {
+          const expDate = new Date(exp.date)
+          expDate.setHours(0, 0, 0, 0)
+          return expDate < todayDate
+        } catch (e) {
+          return false
+        }
+      })
+      
+      // Carry forward pending expenses to today
+      if (pendingFromPreviousDays.length > 0) {
+        for (const expense of pendingFromPreviousDays) {
+          try {
+            await expensesAPI.update(expense.id, {
+              ...expense,
+              date: today, // Update date to today
+            })
+          } catch (err) {
+            console.error('Error carrying forward expense:', err)
+          }
+        }
+        
+        // Reload expenses after carry forward
+        if (pendingFromPreviousDays.length > 0) {
+          loadExpenses()
+        }
+      }
+    } catch (err) {
+      console.error('Error checking pending expenses:', err)
+    }
+  }
 
   const loadExpenses = async () => {
     try {
@@ -69,7 +164,7 @@ function ExpenseManagement() {
         description: expense.description || '',
         category: expense.category || '',
         amount: expense.amount || '',
-        date: expense.date || new Date().toISOString().split('T')[0],
+        date: expense.date || getTodayDate(),
         paymentMethod: expense.paymentMethod || 'Cash',
         notes: expense.notes || '',
         status: expense.status || 'paid',
@@ -80,7 +175,7 @@ function ExpenseManagement() {
         description: '',
         category: '',
         amount: '',
-        date: new Date().toISOString().split('T')[0],
+        date: getTodayDate(),
         paymentMethod: 'Cash',
         notes: '',
         status: 'paid',
@@ -96,7 +191,7 @@ function ExpenseManagement() {
         description: '',
         category: '',
         amount: '',
-        date: new Date().toISOString().split('T')[0],
+        date: getTodayDate(),
         paymentMethod: 'Cash',
         notes: '',
         status: 'paid',
@@ -123,9 +218,10 @@ function ExpenseManagement() {
       }
 
       handleCloseModal()
+      showSuccess(editingExpense ? 'Expense updated successfully!' : 'Expense created successfully!')
       loadExpenses()
     } catch (err) {
-      alert(`Failed to save expense: ${err.message}`)
+      showError(`Failed to save expense: ${err.message}`)
       console.error(err)
     }
   }
@@ -139,7 +235,7 @@ function ExpenseManagement() {
       await expensesAPI.delete(id)
       loadExpenses()
     } catch (err) {
-      alert('Failed to delete expense. Please try again.')
+      showError('Failed to delete expense. Please try again.')
       console.error(err)
     }
   }
@@ -147,18 +243,43 @@ function ExpenseManagement() {
   // Ensure expenses is always an array
   const expensesArray = Array.isArray(expenses) ? expenses : []
   
+  // Filter expenses by selected date
+  const selectedDateObj = new Date(selectedDate)
+  const dateStart = new Date(selectedDateObj.getFullYear(), selectedDateObj.getMonth(), selectedDateObj.getDate())
+  const dateStartTime = dateStart.getTime()
+  const dateEndTime = dateStartTime + (24 * 60 * 60 * 1000) - 1
+  
+  const filteredExpenses = Array.isArray(expensesArray) ? expensesArray.filter(exp => {
+    if (!exp || !exp.date) return false
+    try {
+      const expDate = new Date(exp.date)
+      const expTime = expDate.getTime()
+      return expTime >= dateStartTime && expTime < dateEndTime
+    } catch (e) {
+      return false
+    }
+  }) : []
+  
   // Calculate totals - with safety checks
   const totalExpenses = Array.isArray(expensesArray) ? expensesArray.reduce((sum, exp) => sum + (exp?.amount || 0), 0) : 0
+  
+  // Calculate today's expenses for summary card
+  const today = getTodayDate()
   const todayExpenses = Array.isArray(expensesArray) ? expensesArray.filter(exp => {
     if (!exp || !exp.date) return false
     try {
-      const expDate = new Date(exp.date).toISOString().split('T')[0]
-      const today = new Date().toISOString().split('T')[0]
-      return expDate === today
+      // Parse expense date properly for comparison
+      const [year, month, day] = exp.date.split('-').map(Number)
+      const expDateObj = new Date(year, month - 1, day)
+      const expDateStr = `${expDateObj.getFullYear()}-${String(expDateObj.getMonth() + 1).padStart(2, '0')}-${String(expDateObj.getDate()).padStart(2, '0')}`
+      return expDateStr === today
     } catch (e) {
       return false
     }
   }).reduce((sum, exp) => sum + (exp?.amount || 0), 0) : 0
+  
+  // Calculate selected date's expenses total
+  const selectedDateTotal = filteredExpenses.reduce((sum, exp) => sum + (exp?.amount || 0), 0)
 
   const expensesByCategory = Array.isArray(expensesArray) ? expensesArray.reduce((acc, exp) => {
     if (!exp) return acc
@@ -189,12 +310,21 @@ function ExpenseManagement() {
     <div className="max-w-7xl mx-auto px-2 sm:px-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">Expense Management</h2>
-        <button
-          onClick={() => handleOpenModal()}
-          className="w-full sm:w-auto px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors text-sm sm:text-base"
-        >
-          + Add Expense
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+            title="Select date to view expenses"
+          />
+          <button
+            onClick={() => handleOpenModal()}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors text-sm sm:text-base"
+          >
+            + Add Expense
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -217,9 +347,11 @@ function ExpenseManagement() {
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
-          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">Today's Expenses</h3>
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">
+            {selectedDate === getTodayDate() ? "Today's Expenses" : `${new Date(selectedDate).toLocaleDateString()} Expenses`}
+          </h3>
           <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-red-600 dark:text-red-400">
-            KSH {(todayExpenses || 0).toFixed(2)}
+            KSH {(selectedDateTotal || 0).toFixed(2)}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
@@ -299,12 +431,12 @@ function ExpenseManagement() {
         <>
           {/* Mobile Card View */}
           <div className="block lg:hidden space-y-3">
-            {!Array.isArray(expensesArray) || expensesArray.length === 0 ? (
+            {!Array.isArray(filteredExpenses) || filteredExpenses.length === 0 ? (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                No expenses recorded yet
+                No expenses for {new Date(selectedDate).toLocaleDateString()}
               </div>
             ) : (
-              Array.isArray(expensesArray) && expensesArray.map((expense) => (
+              Array.isArray(filteredExpenses) && filteredExpenses.map((expense) => (
                 <div
                   key={expense.id}
                   className={`bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 ${
@@ -391,14 +523,14 @@ function ExpenseManagement() {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {!Array.isArray(expensesArray) || expensesArray.length === 0 ? (
+                  {!Array.isArray(filteredExpenses) || filteredExpenses.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                        No expenses recorded yet
+                        No expenses for {new Date(selectedDate).toLocaleDateString()}
                       </td>
                     </tr>
                   ) : (
-                    Array.isArray(expensesArray) && expensesArray.map((expense) => (
+                    Array.isArray(filteredExpenses) && filteredExpenses.map((expense) => (
                       <tr key={expense.id} className={expense.status === 'pending' ? 'bg-yellow-50 dark:bg-yellow-900/20' : ''}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                           {new Date(expense.date).toLocaleDateString()}
