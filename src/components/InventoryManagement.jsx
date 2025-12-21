@@ -4,7 +4,7 @@ import CategoryItem from './CategoryItem'
 import { useNotification } from './NotificationManager'
 
 function InventoryManagement() {
-  const { showError, showSuccess, showWarning, showConfirm } = useNotification()
+  const { showError, showSuccess, showWarning, showConfirm, showInfo } = useNotification()
   const [products, setProducts] = useState([])
   const [suppliers, setSuppliers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -19,6 +19,8 @@ function InventoryManagement() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
   const [showCategoryManager, setShowCategoryManager] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
+  const [priceHistory, setPriceHistory] = useState([])
+  const [loadingPriceHistory, setLoadingPriceHistory] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     price: '',
@@ -54,6 +56,31 @@ function InventoryManagement() {
     } catch (err) {
       console.error('Failed to load suppliers:', err)
       setSuppliers([])
+    }
+  }
+
+  const loadPriceHistory = async (productId) => {
+    if (!productId) {
+      setPriceHistory([])
+      return
+    }
+    try {
+      setLoadingPriceHistory(true)
+      const data = await priceHistoryAPI.getAll({ productId })
+      let historyArray = []
+      if (data && data.success && Array.isArray(data.priceHistory)) {
+        historyArray = data.priceHistory
+      } else if (Array.isArray(data.priceHistory)) {
+        historyArray = data.priceHistory
+      } else if (Array.isArray(data)) {
+        historyArray = data
+      }
+      setPriceHistory(Array.isArray(historyArray) ? historyArray : [])
+    } catch (err) {
+      console.error('Failed to load price history:', err)
+      setPriceHistory([])
+    } finally {
+      setLoadingPriceHistory(false)
     }
   }
 
@@ -98,6 +125,7 @@ function InventoryManagement() {
         supplierId: product.supplierId || '',
         supplierName: product.supplierName || '',
       })
+      loadPriceHistory(product.id)
     } else {
       setEditingProduct(null)
       setFormData({
@@ -114,6 +142,7 @@ function InventoryManagement() {
         supplierId: '',
         supplierName: '',
       })
+      setPriceHistory([])
     }
     setShowModal(true)
   }
@@ -121,6 +150,8 @@ function InventoryManagement() {
   const handleCloseModal = () => {
     setShowModal(false)
     setEditingProduct(null)
+    setPriceHistory([])
+    setLoadingPriceHistory(false)
     setFormData({
       name: '',
       price: '',
