@@ -8,6 +8,7 @@ function SalesScreen() {
   const [products, setProducts] = useState([])
   const [cart, setCart] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [checkingOut, setCheckingOut] = useState(false)
@@ -248,12 +249,17 @@ function SalesScreen() {
     }
   }
 
+  // Get unique categories from products
+  const categories = Array.isArray(products) ? ['all', ...new Set(products.map(p => p.category).filter(Boolean))] : ['all']
+
   const filteredProducts = Array.isArray(products) ? products.filter(product => {
     if (!product || !product.name) return false
     const searchLower = searchTerm.toLowerCase()
     const nameMatch = product.name.toLowerCase().includes(searchLower)
     const categoryMatch = product.category?.toLowerCase().includes(searchLower)
-    return nameMatch || categoryMatch
+    const matchesSearch = nameMatch || categoryMatch
+    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory
+    return matchesSearch && matchesCategory
   }).sort((a, b) => {
     // Sort alphabetically by name
     const nameA = (a.name || '').toLowerCase()
@@ -277,14 +283,29 @@ function SalesScreen() {
         {/* Products Section */}
         <div className="lg:col-span-2 order-2 lg:order-1">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4">
-            <div className="mb-4">
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              />
+            <div className="mb-4 flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+              <div className="sm:w-48">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                >
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>
+                      {cat === 'all' ? 'All Categories' : cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {loading ? (

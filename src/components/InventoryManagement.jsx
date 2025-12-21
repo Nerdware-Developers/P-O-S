@@ -364,7 +364,7 @@ function InventoryManagement() {
   }) : []
 
   return (
-    <div className="max-w-7xl mx-auto px-2 sm:px-4">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">Inventory Management</h2>
         <button
@@ -478,8 +478,8 @@ function InventoryManagement() {
 
       {/* Search and Filter */}
       <div className="mb-4 space-y-3">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1">
+        <div className="flex flex-col gap-3">
+          <div className="w-full">
             <input
               type="text"
               placeholder="Search products by name, description, or category..."
@@ -488,38 +488,40 @@ function InventoryManagement() {
               className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
             />
           </div>
-          <div className="sm:w-48">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          <div className="grid grid-cols-2 sm:flex sm:flex-row gap-3">
+            <div className="sm:w-48 sm:flex-1">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="all">All Categories</option>
+                {existingCategories.map((category, index) => (
+                  <option key={index} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:w-48 sm:flex-1">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="name">Sort: Name (A-Z)</option>
+                <option value="price">Sort: Price (High-Low)</option>
+                <option value="priceAsc">Sort: Price (Low-High)</option>
+                <option value="stock">Sort: Stock (High-Low)</option>
+                <option value="stockAsc">Sort: Stock (Low-High)</option>
+                <option value="category">Sort: Category</option>
+              </select>
+            </div>
+            <button
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className="col-span-2 sm:col-span-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-700 dark:text-white whitespace-nowrap"
             >
-              <option value="all">All Categories</option>
-              {existingCategories.map((category, index) => (
-                <option key={index} value={category}>{category}</option>
-              ))}
-            </select>
+              {showAdvancedFilters ? 'Hide' : 'Advanced'} Filters
+            </button>
           </div>
-          <div className="sm:w-48">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="name">Sort: Name (A-Z)</option>
-              <option value="price">Sort: Price (High-Low)</option>
-              <option value="priceAsc">Sort: Price (Low-High)</option>
-              <option value="stock">Sort: Stock (High-Low)</option>
-              <option value="stockAsc">Sort: Stock (Low-High)</option>
-              <option value="category">Sort: Category</option>
-            </select>
-          </div>
-          <button
-            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 dark:bg-gray-700 dark:text-white"
-          >
-            {showAdvancedFilters ? 'Hide' : 'Advanced'} Filters
-          </button>
         </div>
 
         {/* Advanced Filters */}

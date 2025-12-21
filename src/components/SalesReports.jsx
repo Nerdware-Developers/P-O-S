@@ -12,10 +12,43 @@ function SalesReports() {
   // Get today's date in local timezone (YYYY-MM-DD format)
   const getTodayDate = () => {
     const now = new Date()
+    // Use local time methods to avoid timezone issues
     const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
-    const day = String(now.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
+    const month = now.getMonth() + 1 // getMonth() returns 0-11, so add 1
+    const day = now.getDate() // getDate() returns 1-31 in local time
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  }
+  
+  // Helper to get local date string from timestamp (YYYY-MM-DD format)
+  const getLocalDateString = (timestamp) => {
+    if (!timestamp) return null
+    try {
+      const date = new Date(timestamp)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    } catch (e) {
+      return null
+    }
+  }
+  
+  // Helper to check if sale timestamp matches target date
+  const isSaleOnDate = (saleTimestamp, targetDate) => {
+    if (!saleTimestamp || !targetDate) {
+      return false
+    }
+    try {
+      const saleDateStr = getLocalDateString(saleTimestamp)
+      if (!saleDateStr) {
+        return false
+      }
+      const match = saleDateStr === targetDate
+      return match
+    } catch (e) {
+      console.error('Error in isSaleOnDate:', e, saleTimestamp, targetDate)
+      return false
+    }
   }
   
   const [selectedDate, setSelectedDate] = useState(getTodayDate()) // Selected date for viewing
@@ -43,19 +76,31 @@ function SalesReports() {
   // Initialize date to today on mount
   useEffect(() => {
     const today = getTodayDate()
+    console.log('Initializing date picker with today:', today, 'Current time:', new Date().toLocaleString())
     setSelectedDate(today)
   }, [])
 
   useEffect(() => {
     loadUsers()
     loadSales()
-    loadSummary()
     loadClosing()
     if (showClosingsHistory) {
       loadAllClosings()
     }
-    // Refresh summary every 5 seconds for real-time updates
-    const interval = setInterval(loadSummary, 5000)
+    // Only refresh if viewing today's date (for real-time updates)
+    // Don't auto-refresh if viewing a past date - it won't change
+    let interval = null
+    const today = getTodayDate()
+    if (selectedDate === today) {
+      // Only set up auto-refresh when viewing today's date
+      interval = setInterval(() => {
+        const currentToday = getTodayDate()
+        // Double-check we're still viewing today before refreshing
+        if (selectedDate === currentToday) {
+          loadSales()
+        }
+      }, 60000) // Refresh every 60 seconds (1 minute) and only when viewing today
+    }
     
     // Refresh data when a new day starts (check every minute)
     const dayCheckInterval = setInterval(() => {
@@ -68,7 +113,6 @@ function SalesReports() {
         // New day has started, refresh sales data and reset date to today
         setSelectedDate(todayStr)
         loadSales()
-        loadSummary()
         loadClosing()
         localStorage.setItem('lastSalesReportDay', currentDay.toString())
       } else if (!storedDay) {
@@ -77,7 +121,7 @@ function SalesReports() {
     }, 60000) // Check every minute
     
     return () => {
-      clearInterval(interval)
+      if (interval) clearInterval(interval)
       clearInterval(dayCheckInterval)
     }
   }, [filter, selectedUserId, selectedDate, showClosingsHistory, closingsFilter])
@@ -203,13 +247,6 @@ function SalesReports() {
       
       // Always calculate daily sales from local sales data (backend uses UTC which causes timezone issues)
       // But use monthly data from API if available
-      // When filter is 'today', use today's date. Otherwise use selectedDate
-      const dateToUse = filter === 'today' ? getTodayDate() : selectedDate
-      const [year, month, day] = dateToUse.split('-').map(Number)
-      const dateStart = new Date(year, month - 1, day, 0, 0, 0, 0) // Local midnight
-      const dateStartTime = dateStart.getTime()
-      const dateEndTime = dateStartTime + (24 * 60 * 60 * 1000) - 1
-      
       // Use provided sales data or fall back to state
       const salesToUse = salesDataOverride || sales
       
@@ -217,17 +254,14 @@ function SalesReports() {
       let dailyProfit = 0
       
       if (Array.isArray(salesToUse) && salesToUse.length > 0) {
-        const dailySales = salesToUse.filter(sale => {
-          if (!sale || !sale.timestamp) return false
-          try {
-            const saleDate = new Date(sale.timestamp)
-            const saleTime = saleDate.getTime()
-            // Check if sale is within selected date's range (local time)
-            return saleTime >= dateStartTime && saleTime < dateEndTime
-          } catch (e) {
-            return false
-          }
-        })
+        // Filter by selected date (always use selectedDate when filtering by date)
+        let dailySales = []
+        if (selectedDate) {
+          const dateToUse = selectedDate
+          dailySales = salesToUse.filter(sale => isSaleOnDate(sale.timestamp, dateToUse))
+        } else {
+          dailySales = salesToUse
+        }
         dailyTotal = dailySales.reduce((sum, sale) => sum + (sale?.total || sale?.subtotal || 0), 0)
         dailyProfit = dailySales.reduce((sum, sale) => sum + (sale?.profit || 0), 0)
       }
@@ -242,6 +276,7 @@ function SalesReports() {
       } else {
         // Calculate monthly from sales data if API failed
         if (Array.isArray(salesToUse) && salesToUse.length > 0) {
+          const now = new Date()
           const currentMonth = now.getMonth() + 1
           const currentYear = now.getFullYear()
           const monthlySales = salesToUse.filter(sale => {
@@ -256,11 +291,12 @@ function SalesReports() {
       
         setReportData(prev => ({
           ...prev,
-        dailyTotal,
-        dailyProfit,
-        monthlyTotal,
-        monthlyProfit,
-      }))
+          dailyTotal,
+          dailyProfit,
+          monthlyTotal,
+          monthlyProfit,
+          // Preserve topSelling - it's calculated in calculateReportData
+        }))
       
       console.log('Updated report data (daily from local, monthly from API):', {
         dailyTotal,
@@ -273,29 +309,21 @@ function SalesReports() {
       // Calculate everything from sales data as fallback
       const salesToUse = salesDataOverride || sales
       if (Array.isArray(salesToUse) && salesToUse.length > 0) {
-        // When filter is 'today', use today's date. Otherwise use selectedDate
-        const dateToUse = filter === 'today' ? getTodayDate() : selectedDate
-        const [year, month, day] = dateToUse.split('-').map(Number)
-        const dateStart = new Date(year, month - 1, day, 0, 0, 0, 0) // Local midnight
-        const todayStart = dateStart.getTime()
-        const todayEnd = todayStart + (24 * 60 * 60 * 1000) - 1
+        let dailySales = []
+        // Filter by selectedDate (always use selectedDate when filtering by date)
+        if (selectedDate) {
+          const dateToUse = selectedDate
+          dailySales = salesToUse.filter(sale => isSaleOnDate(sale.timestamp, dateToUse))
+        } else {
+          dailySales = salesToUse
+        }
+        
+        const dailyTotal = dailySales.reduce((sum, sale) => sum + (sale?.total || sale?.subtotal || 0), 0)
+        const dailyProfit = dailySales.reduce((sum, sale) => sum + (sale?.profit || 0), 0)
         
         const now = new Date()
         const currentMonth = now.getMonth() + 1
         const currentYear = now.getFullYear()
-        
-        const dailySales = salesToUse.filter(sale => {
-          if (!sale || !sale.timestamp) return false
-          try {
-            const saleDate = new Date(sale.timestamp)
-            const saleTime = saleDate.getTime()
-            return saleTime >= todayStart && saleTime < todayEnd
-          } catch (e) {
-            return false
-          }
-        })
-        const dailyTotal = dailySales.reduce((sum, sale) => sum + (sale?.total || sale?.subtotal || 0), 0)
-        const dailyProfit = dailySales.reduce((sum, sale) => sum + (sale?.profit || 0), 0)
         
         const monthlySales = salesToUse.filter(sale => {
           if (!sale || !sale.timestamp) return false
@@ -311,6 +339,7 @@ function SalesReports() {
           dailyProfit,
           monthlyTotal,
           monthlyProfit,
+          // Preserve topSelling - it's calculated in calculateReportData
         }))
       }
     }
@@ -321,24 +350,31 @@ function SalesReports() {
       setLoading(true)
       setError(null)
       const filters = {}
-      if (filter === 'today') {
-        // Use local date for filtering
-        const now = new Date()
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-        const todayStr = today.toISOString().split('T')[0]
-        filters.date = todayStr
+      
+      // Load sales data - if a specific date is selected, load sales for that month
+      // to ensure we get all sales for that date (accounting for timezone differences)
+      if (selectedDate) {
+        // Load sales from the selected month to ensure we get all data for that date
+        const [year, month] = selectedDate.split('-').map(Number)
+        filters.month = month
+        filters.year = year
+        console.log('Loading sales for selected date:', selectedDate, 'Month:', month, 'Year:', year)
       } else if (filter === 'month') {
         const now = new Date()
         filters.month = now.getMonth() + 1
         filters.year = now.getFullYear()
+      } else if (filter === 'all') {
+        // Load all sales when filter is 'all'
+        // Don't set any date filters
       }
+      // Frontend will filter by exact date to handle timezone correctly
       
       // Add user filter if a specific user is selected
       if (selectedUserId && selectedUserId !== 'all') {
         filters.userId = selectedUserId
       }
       
-      console.log('Loading sales with filters:', filters)
+      console.log('Loading sales with filters:', filters, 'Will filter by selectedDate on frontend:', selectedDate)
       const data = await salesAPI.getAll(filters)
       console.log('Sales API Response:', data)
       // Safely extract sales array from API response
@@ -362,21 +398,20 @@ function SalesReports() {
       
       const salesArray = Array.isArray(salesData) ? salesData : []
       setSales(salesArray)
-      calculateReportData(salesArray)
-      // Recalculate summary with new sales data (daily will use local time)
-      // Pass sales data directly to avoid state timing issues
-      loadSummary(salesArray)
+      // Calculate all report data including topSelling for the selected date
+      // Pass selectedDate explicitly to ensure we use the current value
+      calculateReportData(salesArray, selectedDate)
     } catch (err) {
       console.error('Sales loading error:', err)
       setError(`Failed to load sales data: ${err.message || 'Unknown error'}. Check browser console for details.`)
       setSales([])
-      calculateReportData([])
+      calculateReportData([], selectedDate)
     } finally {
       setLoading(false)
     }
   }
 
-  const calculateReportData = (salesData) => {
+  const calculateReportData = (salesData, dateToFilter = null) => {
     if (!Array.isArray(salesData)) {
       setReportData({
         dailyTotal: 0,
@@ -389,32 +424,93 @@ function SalesReports() {
     }
 
     try {
-      // When filter is 'today', use today's date. Otherwise use selectedDate
-      const dateToUse = filter === 'today' ? getTodayDate() : selectedDate
-      const [year, month, day] = dateToUse.split('-').map(Number)
-      const dateStart = new Date(year, month - 1, day, 0, 0, 0, 0) // Local midnight
-      const dateStartTime = dateStart.getTime()
-      const dateEndTime = dateStartTime + (24 * 60 * 60 * 1000) - 1
+      // Use the provided date or fall back to selectedDate state
+      const dateToUse = dateToFilter || selectedDate
+      
+      // Filter by selected date (always use dateToUse when filtering by date)
+      let dailySales = []
+      if (dateToUse) {
+        const [year, month, day] = dateToUse.split('-').map(Number)
+        // Create date range in local timezone
+        const dateStart = new Date(year, month - 1, day, 0, 0, 0, 0) // Local midnight start
+        const dateEnd = new Date(year, month - 1, day, 23, 59, 59, 999) // Local end of day
+        const dateStartTime = dateStart.getTime()
+        const dateEndTime = dateEnd.getTime()
+        
+        console.log('Filtering sales for date:', dateToUse, 'Total sales:', salesData.length)
+        let matchCount = 0
+        dailySales = salesData.filter(sale => {
+          const matches = isSaleOnDate(sale.timestamp, dateToUse)
+          // Log first few matches for debugging
+          if (matchCount < 3 && matches) {
+            console.log('Sale matches date:', {
+              saleId: sale.id,
+              timestamp: sale.timestamp,
+              localDate: getLocalDateString(sale.timestamp),
+              targetDate: dateToUse,
+              matches
+            })
+            matchCount++
+          }
+          return matches
+        })
+        console.log('Filtered daily sales count:', dailySales.length, 'for date:', dateToUse)
+        
+        // If no matches, show sample of what we got
+        if (dailySales.length === 0 && salesData.length > 0) {
+          console.log('No sales found for date. Sample of loaded sales:', salesData.slice(0, 5).map(s => ({
+            id: s.id,
+            timestamp: s.timestamp,
+            localDate: getLocalDateString(s.timestamp),
+            targetDate: dateToUse
+          })))
+        }
+      } else {
+        // No date selected, use all sales
+        dailySales = salesData
+      }
       
       const currentMonth = new Date().getMonth() + 1
       const currentYear = new Date().getFullYear()
-
-      // Calculate daily total and profit - use dateToUse for comparison
-      const dailySales = salesData.filter(sale => {
-        if (!sale || !sale.timestamp) return false
-        try {
-          const saleDate = new Date(sale.timestamp)
-          const saleTime = saleDate.getTime()
-          // Check if sale is within date's range (local time)
-          return saleTime >= dateStartTime && saleTime < dateEndTime
-        } catch (e) {
-          return false
-        }
+      
+      console.log('calculateReportData - Daily sales calculation:', {
+        filter,
+        selectedDate,
+        dateToUse,
+        totalSales: salesData.length,
+        dailySalesCount: dailySales.length,
+        sampleTimestamps: dailySales.slice(0, 5).map(s => {
+          const saleDate = new Date(s.timestamp)
+          return {
+            id: s.id,
+            timestamp: s.timestamp,
+            localDate: saleDate.toLocaleDateString(),
+            localDateStr: getLocalDateString(s.timestamp),
+            total: s.total,
+            subtotal: s.subtotal,
+            profit: s.profit
+          }
+        }),
+        // Show some sales that were filtered out for debugging
+        filteredOutSample: dateToUse && salesData.length > 0 ? salesData.slice(0, 10).filter(s => {
+          if (!s || !s.timestamp) return false
+          return !isSaleOnDate(s.timestamp, dateToUse)
+        }).slice(0, 3).map(s => {
+          const saleDate = new Date(s.timestamp)
+          return {
+            id: s.id,
+            timestamp: s.timestamp,
+            localDate: saleDate.toLocaleDateString(),
+            localDateStr: getLocalDateString(s.timestamp),
+            expectedDate: dateToUse
+          }
+        }) : []
       })
-      const dailyTotal = dailySales.reduce((sum, sale) => sum + (sale?.total || 0), 0)
+      
+      const dailyTotal = dailySales.reduce((sum, sale) => sum + (sale?.total || sale?.subtotal || 0), 0)
       const dailyProfit = dailySales.reduce((sum, sale) => sum + (sale?.profit || 0), 0)
 
-      // Calculate monthly total and profit
+      // Calculate monthly total and profit from all sales data
       const monthlySales = salesData.filter(sale => {
         if (!sale || !sale.timestamp) return false
         try {
@@ -424,8 +520,26 @@ function SalesReports() {
           return false
         }
       })
-      const monthlyTotal = monthlySales.reduce((sum, sale) => sum + (sale?.total || 0), 0)
+      const monthlyTotal = monthlySales.reduce((sum, sale) => sum + (sale?.total || sale?.subtotal || 0), 0)
       const monthlyProfit = monthlySales.reduce((sum, sale) => sum + (sale?.profit || 0), 0)
+      
+      // Try to get monthly data from API for more accuracy, but use calculated as fallback
+      // Only fetch monthly data if viewing today (to avoid interfering with past date views)
+      const today = getTodayDate()
+      if (!selectedDate || selectedDate === today) {
+        summaryAPI.get().then(data => {
+          if (data && data.success) {
+            setReportData(prev => ({
+              ...prev,
+              monthlyTotal: data.monthlySales || monthlyTotal,
+              monthlyProfit: data.monthlyProfit || monthlyProfit,
+              // Preserve daily data and topSelling
+            }))
+          }
+        }).catch(() => {
+          // Use calculated monthly data if API fails
+        })
+      }
 
       // Calculate top selling items - only from selected date's sales
       const itemCounts = {}
@@ -445,6 +559,15 @@ function SalesReports() {
         .sort((a, b) => b.quantity - a.quantity)
         .slice(0, 10)
 
+      console.log('calculateReportData - Final report data:', {
+        dailyTotal,
+        dailyProfit,
+        monthlyTotal,
+        monthlyProfit,
+        topSellingCount: topSelling.length
+      })
+      
+      // Set all data including topSelling for the selected date
       setReportData({
         dailyTotal,
         dailyProfit,
@@ -507,20 +630,24 @@ function SalesReports() {
   
   return (
     <div className="w-full max-w-7xl mx-auto px-3 sm:px-4">
-      <div className="flex flex-col gap-4 mb-4 sm:mb-6">
+      <div className="flex flex-col gap-3 mb-4 sm:mb-6">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">Sales Reports</h2>
         
-        {/* Filters Row */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        {/* Date and Filters Row - All on one line */}
+        <div className="flex flex-row gap-2 sm:gap-3 items-center">
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => {
               setSelectedDate(e.target.value)
-              // Load closing for the new date after state updates
-              setTimeout(() => loadClosing(), 100)
+              // When date changes, reload sales and recalculate data
+              // The useEffect will handle the reload, but we trigger it explicitly
+              setTimeout(() => {
+                loadClosing()
+                loadSales()
+              }, 100)
             }}
-            className="flex-1 px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+            className="w-auto px-2 sm:px-3 py-1.5 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
             title="Select date to view sales"
           />
           <select
@@ -547,21 +674,12 @@ function SalesReports() {
         </div>
 
         {/* Action Buttons Row */}
-        <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 sm:gap-3">
+        <div className="flex flex-row gap-2 sm:gap-3">
           <button
             onClick={exportToCSV}
             className="col-span-2 sm:col-span-1 inline-flex items-center justify-center px-3 sm:px-4 py-2 text-sm sm:text-base bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors whitespace-nowrap"
           >
             Export CSV
-          </button>
-          <button
-            onClick={() => {
-              loadClosing()
-              setShowClosingModal(true)
-            }}
-            className="inline-flex items-center justify-center px-3 sm:px-4 py-2 text-sm sm:text-base bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors whitespace-nowrap"
-          >
-            Daily Closing
           </button>
           <button
             onClick={() => {
@@ -816,30 +934,22 @@ function SalesReports() {
                   </td>
                 </tr>
               ) : (() => {
-                // When filter is 'today', use today's date. Otherwise use selectedDate
-                const dateToUse = filter === 'today' ? getTodayDate() : selectedDate
-                // Filter sales to show date's sales - parse date string properly for local time
-                const [year, month, day] = dateToUse.split('-').map(Number)
-                const dateStart = new Date(year, month - 1, day, 0, 0, 0, 0) // Local midnight
-                const dateStartTime = dateStart.getTime()
-                const dateEndTime = dateStartTime + (24 * 60 * 60 * 1000) - 1
-                
-                const filteredSales = sales.filter(sale => {
-                  if (!sale || !sale.timestamp) return false
-                  try {
-                    const saleDate = new Date(sale.timestamp)
-                    const saleTime = saleDate.getTime()
-                    return saleTime >= dateStartTime && saleTime < dateEndTime
-                  } catch (e) {
-                    return false
-                  }
-                })
+                // Filter by selected date (always use selectedDate when filtering by date)
+                let filteredSales = []
+                if (selectedDate) {
+                  const dateToUse = selectedDate
+                  const [year, month, day] = dateToUse.split('-').map(Number)
+                  
+                  filteredSales = sales.filter(sale => isSaleOnDate(sale.timestamp, dateToUse))
+                } else {
+                  filteredSales = sales
+                }
                 
                 if (filteredSales.length === 0) {
                   return (
                     <tr>
                       <td colSpan="6" className="px-2 sm:px-4 lg:px-6 py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                        No sales for {new Date(dateToUse).toLocaleDateString()}
+                        No sales for {selectedDate ? new Date(selectedDate).toLocaleDateString() : 'selected period'}
                       </td>
                     </tr>
                   )
