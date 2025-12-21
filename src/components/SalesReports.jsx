@@ -203,8 +203,9 @@ function SalesReports() {
       
       // Always calculate daily sales from local sales data (backend uses UTC which causes timezone issues)
       // But use monthly data from API if available
-      // Use selectedDate for daily calculations - parse date string properly for local time
-      const [year, month, day] = selectedDate.split('-').map(Number)
+      // When filter is 'today', use today's date. Otherwise use selectedDate
+      const dateToUse = filter === 'today' ? getTodayDate() : selectedDate
+      const [year, month, day] = dateToUse.split('-').map(Number)
       const dateStart = new Date(year, month - 1, day, 0, 0, 0, 0) // Local midnight
       const dateStartTime = dateStart.getTime()
       const dateEndTime = dateStartTime + (24 * 60 * 60 * 1000) - 1
@@ -272,8 +273,9 @@ function SalesReports() {
       // Calculate everything from sales data as fallback
       const salesToUse = salesDataOverride || sales
       if (Array.isArray(salesToUse) && salesToUse.length > 0) {
-        // Use selectedDate for calculations - parse date string properly for local time
-        const [year, month, day] = selectedDate.split('-').map(Number)
+        // When filter is 'today', use today's date. Otherwise use selectedDate
+        const dateToUse = filter === 'today' ? getTodayDate() : selectedDate
+        const [year, month, day] = dateToUse.split('-').map(Number)
         const dateStart = new Date(year, month - 1, day, 0, 0, 0, 0) // Local midnight
         const todayStart = dateStart.getTime()
         const todayEnd = todayStart + (24 * 60 * 60 * 1000) - 1
@@ -387,8 +389,9 @@ function SalesReports() {
     }
 
     try {
-      // Use selected date for daily calculations - parse date string properly for local time
-      const [year, month, day] = selectedDate.split('-').map(Number)
+      // When filter is 'today', use today's date. Otherwise use selectedDate
+      const dateToUse = filter === 'today' ? getTodayDate() : selectedDate
+      const [year, month, day] = dateToUse.split('-').map(Number)
       const dateStart = new Date(year, month - 1, day, 0, 0, 0, 0) // Local midnight
       const dateStartTime = dateStart.getTime()
       const dateEndTime = dateStartTime + (24 * 60 * 60 * 1000) - 1
@@ -396,13 +399,13 @@ function SalesReports() {
       const currentMonth = new Date().getMonth() + 1
       const currentYear = new Date().getFullYear()
 
-      // Calculate daily total and profit - use selected date comparison
+      // Calculate daily total and profit - use dateToUse for comparison
       const dailySales = salesData.filter(sale => {
         if (!sale || !sale.timestamp) return false
         try {
           const saleDate = new Date(sale.timestamp)
           const saleTime = saleDate.getTime()
-          // Check if sale is within selected date's range (local time)
+          // Check if sale is within date's range (local time)
           return saleTime >= dateStartTime && saleTime < dateEndTime
         } catch (e) {
           return false
@@ -503,10 +506,12 @@ function SalesReports() {
   }
   
   return (
-    <div className="w-full max-w-7xl mx-auto px-2 sm:px-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-4">
+      <div className="flex flex-col gap-4 mb-4 sm:mb-6">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">Sales Reports</h2>
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-start sm:items-center">
+        
+        {/* Filters Row */}
+        <div className="flex flex-col sm:flex-row gap-3">
           <input
             type="date"
             value={selectedDate}
@@ -515,13 +520,13 @@ function SalesReports() {
               // Load closing for the new date after state updates
               setTimeout(() => loadClosing(), 100)
             }}
-            className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+            className="flex-1 px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
             title="Select date to view sales"
           />
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+            className="flex-1 sm:w-40 px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
           >
             <option value="all">All Sales</option>
             <option value="today">Today</option>
@@ -530,7 +535,7 @@ function SalesReports() {
           <select
             value={selectedUserId}
             onChange={(e) => setSelectedUserId(e.target.value)}
-            className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+            className="flex-1 sm:w-48 px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
           >
             <option value="all">All Users</option>
             {Array.isArray(users) && users.map(user => (
@@ -539,9 +544,13 @@ function SalesReports() {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Action Buttons Row */}
+        <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 sm:gap-3">
           <button
             onClick={exportToCSV}
-            className="inline-flex items-center justify-center px-3 sm:px-4 py-2 text-sm sm:text-base bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors whitespace-nowrap flex-shrink-0"
+            className="col-span-2 sm:col-span-1 inline-flex items-center justify-center px-3 sm:px-4 py-2 text-sm sm:text-base bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors whitespace-nowrap"
           >
             Export CSV
           </button>
@@ -550,7 +559,7 @@ function SalesReports() {
               loadClosing()
               setShowClosingModal(true)
             }}
-            className="inline-flex items-center justify-center px-3 sm:px-4 py-2 text-sm sm:text-base bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors whitespace-nowrap flex-shrink-0"
+            className="inline-flex items-center justify-center px-3 sm:px-4 py-2 text-sm sm:text-base bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors whitespace-nowrap"
           >
             Daily Closing
           </button>
@@ -561,7 +570,7 @@ function SalesReports() {
                 loadAllClosings()
               }
             }}
-            className="inline-flex items-center justify-center px-3 sm:px-4 py-2 text-sm sm:text-base bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors whitespace-nowrap flex-shrink-0"
+            className="inline-flex items-center justify-center px-3 sm:px-4 py-2 text-sm sm:text-base bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors whitespace-nowrap"
           >
             {showClosingsHistory ? 'Hide' : 'View'} History
           </button>
@@ -807,8 +816,10 @@ function SalesReports() {
                   </td>
                 </tr>
               ) : (() => {
-                // Filter sales to show selected date's sales - parse date string properly for local time
-                const [year, month, day] = selectedDate.split('-').map(Number)
+                // When filter is 'today', use today's date. Otherwise use selectedDate
+                const dateToUse = filter === 'today' ? getTodayDate() : selectedDate
+                // Filter sales to show date's sales - parse date string properly for local time
+                const [year, month, day] = dateToUse.split('-').map(Number)
                 const dateStart = new Date(year, month - 1, day, 0, 0, 0, 0) // Local midnight
                 const dateStartTime = dateStart.getTime()
                 const dateEndTime = dateStartTime + (24 * 60 * 60 * 1000) - 1
@@ -828,7 +839,7 @@ function SalesReports() {
                   return (
                     <tr>
                       <td colSpan="6" className="px-2 sm:px-4 lg:px-6 py-4 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                        No sales for {new Date(selectedDate).toLocaleDateString()}
+                        No sales for {new Date(dateToUse).toLocaleDateString()}
                       </td>
                     </tr>
                   )
