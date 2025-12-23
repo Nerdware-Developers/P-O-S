@@ -21,6 +21,7 @@ function InventoryManagement() {
   const [newCategoryName, setNewCategoryName] = useState('')
   const [priceHistory, setPriceHistory] = useState([])
   const [loadingPriceHistory, setLoadingPriceHistory] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     price: '',
@@ -84,8 +85,14 @@ function InventoryManagement() {
     }
   }
 
-  const loadProducts = async () => {
+  const loadProducts = async (preserveScroll = false) => {
     try {
+      // Save scroll position if we want to preserve it
+      let scrollPosition = 0
+      if (preserveScroll) {
+        scrollPosition = window.pageYOffset || document.documentElement.scrollTop
+      }
+      
       setLoading(true)
       const data = await productsAPI.getAll()
       // Safely extract products array from API response
@@ -99,6 +106,13 @@ function InventoryManagement() {
       }
       setProducts(Array.isArray(productsArray) ? productsArray : [])
       setError(null)
+      
+      // Restore scroll position after a brief delay to allow DOM to update
+      if (preserveScroll) {
+        setTimeout(() => {
+          window.scrollTo(0, scrollPosition)
+        }, 100)
+      }
     } catch (err) {
       setError('Failed to load products. Please check your API configuration.')
       console.error(err)
@@ -152,6 +166,7 @@ function InventoryManagement() {
     setEditingProduct(null)
     setPriceHistory([])
     setLoadingPriceHistory(false)
+    setSubmitting(false)
     setFormData({
       name: '',
       price: '',
@@ -170,6 +185,7 @@ function InventoryManagement() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setSubmitting(true)
     try {
       const selectedSupplier = suppliers.find(s => s.id === formData.supplierId)
       const productData = {
@@ -213,26 +229,30 @@ function InventoryManagement() {
 
       handleCloseModal()
       showSuccess(editingProduct ? 'Product updated successfully!' : 'Product created successfully!')
-      loadProducts()
+      loadProducts(true) // Preserve scroll position
     } catch (err) {
       const errorMessage = err.message || 'Unknown error occurred'
       showError(`Failed to save product: ${errorMessage}. Check the browser console (F12) for more details.`)
       console.error('Product save error:', err)
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this product?')) {
-      return
-    }
-
-    try {
-      await productsAPI.delete(id)
-      loadProducts()
-    } catch (err) {
-      showError('Failed to delete product. Please try again.')
-      console.error(err)
-    }
+    showConfirm(
+      'Are you sure you want to delete this product?',
+      async () => {
+        try {
+          await productsAPI.delete(id)
+          loadProducts(true) // Preserve scroll position
+          showSuccess('Product deleted successfully!')
+        } catch (err) {
+          showError('Failed to delete product. Please try again.')
+          console.error(err)
+        }
+      }
+    )
   }
 
   // Ensure products is always an array
@@ -267,25 +287,26 @@ function InventoryManagement() {
   }
 
   const handleDeleteCategory = async (categoryToDelete) => {
-    if (!window.confirm(`Delete category "${categoryToDelete}"? Products with this category will be set to "Uncategorized".`)) {
-      return
-    }
-
-    try {
-      // Update all products with this category to remove it
-      const productsToUpdate = productsArray.filter(p => p.category === categoryToDelete)
-      for (const product of productsToUpdate) {
-        await productsAPI.update(product.id, {
-          ...product,
-          category: ''
-        })
+    showConfirm(
+      `Delete category "${categoryToDelete}"? Products with this category will be set to "Uncategorized".`,
+      async () => {
+        try {
+          // Update all products with this category to remove it
+          const productsToUpdate = productsArray.filter(p => p.category === categoryToDelete)
+          for (const product of productsToUpdate) {
+            await productsAPI.update(product.id, {
+              ...product,
+              category: ''
+            })
+          }
+          loadProducts(true) // Preserve scroll position
+          showSuccess(`Category "${categoryToDelete}" deleted. Products updated.`)
+        } catch (err) {
+          showError('Failed to delete category. Please try again.')
+          console.error(err)
+        }
       }
-      loadProducts()
-      showSuccess(`Category "${categoryToDelete}" deleted. Products updated.`)
-    } catch (err) {
-      showError('Failed to delete category. Please try again.')
-      console.error(err)
-    }
+    )
   }
 
   const handleRenameCategory = async (oldCategory, newCategoryName) => {
@@ -310,7 +331,7 @@ function InventoryManagement() {
               category: newCategoryName.trim()
             })
           }
-          loadProducts()
+          loadProducts(true) // Preserve scroll position
           showSuccess('Category renamed successfully!')
         } catch (err) {
           showError('Failed to rename category. Please try again.')
@@ -1074,9 +1095,20 @@ function InventoryManagement() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+                  disabled={submitting}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  {editingProduct ? 'Update' : 'Create'}
+                  {submitting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {editingProduct ? 'Updating...' : 'Creating...'}
+                    </>
+                  ) : (
+                    editingProduct ? 'Update' : 'Create'
+                  )}
                 </button>
               </div>
             </form>

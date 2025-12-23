@@ -79,57 +79,32 @@ function SalesScreen() {
       // Expected structure: { success: true, products: [...] }
       if (data.success === true && Array.isArray(data.products)) {
         productsArray = data.products
-        console.log('Using data.products (success=true)')
       } 
       // Fallback: products array directly in response
       else if (Array.isArray(data.products)) {
         productsArray = data.products
-        console.log('Using data.products (array, no success flag)')
       } 
       // Fallback: response is directly an array
       else if (Array.isArray(data)) {
         productsArray = data
-        console.log('Using data directly (array)')
       } 
       // Fallback: products is an object, convert to array
       else if (data.products && typeof data.products === 'object' && !Array.isArray(data.products)) {
         productsArray = Object.values(data.products)
-        console.log('Converted products object to array')
       } 
       // Last resort: try to find any array in the response
       else {
-        console.warn('Could not extract products from response:', data)
-        console.warn('Response structure:', {
-          keys: Object.keys(data),
-          values: Object.values(data).map(v => typeof v),
-          hasArray: Object.values(data).some(v => Array.isArray(v))
-        })
-        
         // Try to find any array in the response
         const arraysInResponse = Object.values(data).filter(v => Array.isArray(v))
         if (arraysInResponse.length > 0) {
-          console.log('Found arrays in response:', arraysInResponse)
           productsArray = arraysInResponse[0] // Use first array found
-          console.log('Using first array found in response')
         } else {
           // No products found and no error - might be empty sheet
-          console.warn('No products array found in response. This might mean:')
-          console.warn('1. The Products sheet is empty (add products in Inventory section)')
-          console.warn('2. The API response format is unexpected')
-          console.warn('3. There was an API error that wasn\'t properly formatted')
           productsArray = [] // Empty array is valid if sheet is empty
         }
       }
       
-      console.log('Extracted products array:', productsArray, 'Length:', productsArray.length)
-      if (productsArray.length > 0) {
-        console.log('First product:', productsArray[0])
-      }
-      
       setProducts(Array.isArray(productsArray) ? productsArray : [])
-      if (productsArray.length === 0) {
-        console.warn('No products loaded. Check if products exist in Google Sheets.')
-      }
     } catch (err) {
       const errorMessage = err.message || 'Unknown error'
       setError(`Failed to load products: ${errorMessage}. Please check your API configuration and browser console for details.`)
@@ -249,8 +224,14 @@ function SalesScreen() {
     }
   }
 
-  // Get unique categories from products
-  const categories = Array.isArray(products) ? ['all', ...new Set(products.map(p => p.category).filter(Boolean))] : ['all']
+  // Get unique categories from products, sorted alphabetically
+  const categories = Array.isArray(products) 
+    ? ['all', ...Array.from(new Set(products.map(p => p.category).filter(Boolean))).sort((a, b) => {
+        const nameA = (a || '').toLowerCase()
+        const nameB = (b || '').toLowerCase()
+        return nameA.localeCompare(nameB)
+      })]
+    : ['all']
 
   const filteredProducts = Array.isArray(products) ? products.filter(product => {
     if (!product || !product.name) return false
@@ -267,7 +248,6 @@ function SalesScreen() {
     return nameA.localeCompare(nameB)
   }) : []
   
-  console.log('Products state:', products, 'Filtered:', filteredProducts)
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4">

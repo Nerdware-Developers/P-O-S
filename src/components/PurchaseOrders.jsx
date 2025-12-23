@@ -22,6 +22,10 @@ function PurchaseOrders() {
     expectedDate: '',
     notes: '',
   })
+  const [productSearchTerm, setProductSearchTerm] = useState('')
+  const [selectedProductId, setSelectedProductId] = useState('')
+  const [productQuantity, setProductQuantity] = useState(1)
+  const [productPrice, setProductPrice] = useState('')
   useEffect(() => {
     loadData()
   }, [])
@@ -108,6 +112,10 @@ function PurchaseOrders() {
   const handleCloseModal = () => {
     setShowModal(false)
     setEditingOrder(null)
+    setProductSearchTerm('')
+    setSelectedProductId('')
+    setProductQuantity(1)
+    setProductPrice('')
   }
 
   const handleSupplierChange = (supplierId) => {
@@ -138,6 +146,70 @@ function PurchaseOrders() {
       ),
     })
   }
+
+  const handleAddProduct = () => {
+    if (!selectedProductId) {
+      showWarning('Please select a product')
+      return
+    }
+    const product = products.find(p => p.id === selectedProductId)
+    if (!product) {
+      showWarning('Product not found')
+      return
+    }
+    if (productQuantity <= 0) {
+      showWarning('Quantity must be greater than 0')
+      return
+    }
+    const price = parseFloat(productPrice) || product.buyingPrice || product.price || 0
+    if (price <= 0) {
+      showWarning('Please enter a valid price')
+      return
+    }
+
+    // Check if product already exists in order
+    const existingItem = formData.items.find(item => item.productId === selectedProductId)
+    if (existingItem) {
+      // Update existing item
+      setFormData({
+        ...formData,
+        items: formData.items.map(item =>
+          item.productId === selectedProductId
+            ? { ...item, quantity: item.quantity + productQuantity, price }
+            : item
+        ),
+      })
+    } else {
+      // Add new item
+      setFormData({
+        ...formData,
+        items: [
+          ...formData.items,
+          {
+            productId: product.id,
+            productName: product.name,
+            quantity: productQuantity,
+            price: price,
+            buyingPrice: price,
+          },
+        ],
+      })
+    }
+
+    // Reset form
+    setSelectedProductId('')
+    setProductQuantity(1)
+    setProductPrice('')
+    setProductSearchTerm('')
+  }
+
+  const filteredProductsForSelection = Array.isArray(products) ? products.filter(product => {
+    if (!product || !product.name) return false
+    const searchLower = productSearchTerm.toLowerCase()
+    const nameMatch = product.name.toLowerCase().includes(searchLower)
+    const categoryMatch = product.category?.toLowerCase().includes(searchLower)
+    return nameMatch || categoryMatch
+  }).slice(0, 10) : []
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -638,6 +710,93 @@ function PurchaseOrders() {
                       onChange={(e) => setFormData({ ...formData, expectedDate: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                     />
+                  </div>
+                </div>
+
+                {/* Add Products Section */}
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Add Products to Order:</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Search Product
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Search by name or category..."
+                        value={productSearchTerm}
+                        onChange={(e) => setProductSearchTerm(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                      {productSearchTerm && filteredProductsForSelection.length > 0 && (
+                        <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-lg max-h-40 overflow-y-auto bg-white dark:bg-gray-800">
+                          {filteredProductsForSelection.map(product => (
+                            <div
+                              key={product.id}
+                              onClick={() => {
+                                setSelectedProductId(product.id)
+                                setProductPrice(product.buyingPrice || product.price || '')
+                                setProductSearchTerm(product.name)
+                              }}
+                              className={`p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-700 last:border-b-0 ${
+                                selectedProductId === product.id ? 'bg-blue-100 dark:bg-blue-900' : ''
+                              }`}
+                            >
+                              <div className="font-medium text-gray-800 dark:text-white">{product.name}</div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400">
+                                Stock: {product.stock || 0} | Current Buying Price: KSH {product.buyingPrice || product.price || '0.00'}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {selectedProductId && (
+                        <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                          <div className="text-sm font-medium text-gray-800 dark:text-white">
+                            Selected: {products.find(p => p.id === selectedProductId)?.name}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    {selectedProductId && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Quantity *
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={productQuantity}
+                            onChange={(e) => setProductQuantity(parseInt(e.target.value) || 1)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Buying Price (KSH) *
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={productPrice}
+                            onChange={(e) => setProductPrice(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <button
+                            type="button"
+                            onClick={handleAddProduct}
+                            className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
+                          >
+                            Add to Order
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

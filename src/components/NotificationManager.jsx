@@ -122,23 +122,32 @@ export const NotificationProvider = ({ children }) => {
   return (
     <NotificationContext.Provider value={contextValue}>
       {children}
-      <div className="fixed top-4 right-4 z-50 space-y-2 pointer-events-none">
+      <>
+        <div className="fixed top-4 right-4 z-50 space-y-2 pointer-events-none">
+          {notifications.map(notification => {
+            if (!notification.component) {
+              return (
+                <div key={notification.id} className="pointer-events-auto">
+                  <NotificationToast
+                    message={notification.message}
+                    type={notification.type}
+                    duration={notification.duration}
+                    onClose={() => removeNotification(notification.id)}
+                  />
+                </div>
+              )
+            }
+            return null
+          })}
+        </div>
+        {/* Render confirmation dialogs outside the pointer-events-none container */}
         {notifications.map(notification => {
           if (notification.component) {
             return <notification.component key={notification.id} />
           }
-          return (
-            <div key={notification.id} className="pointer-events-auto">
-              <NotificationToast
-                message={notification.message}
-                type={notification.type}
-                duration={notification.duration}
-                onClose={() => removeNotification(notification.id)}
-              />
-            </div>
-          )
+          return null
         })}
-      </div>
+      </>
     </NotificationContext.Provider>
   )
 }
