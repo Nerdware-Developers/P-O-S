@@ -46,31 +46,6 @@ function ExpenseManagement() {
   useEffect(() => {
     loadExpenses()
     checkAndCarryForwardPendingExpenses()
-    
-    // Check for new day every minute to carry forward pending expenses and reset date
-    const dayCheckInterval = setInterval(() => {
-      const now = new Date()
-      const currentDay = now.getDate()
-      const storedDay = localStorage.getItem('lastExpenseReportDay')
-      const todayStr = getTodayDate()
-      
-      if (storedDay && parseInt(storedDay) !== currentDay) {
-        // New day has started, reset selected date to today and refresh
-        setSelectedDate(todayStr)
-        checkAndCarryForwardPendingExpenses()
-        loadExpenses()
-        localStorage.setItem('lastExpenseReportDay', currentDay.toString())
-      } else if (!storedDay) {
-        localStorage.setItem('lastExpenseReportDay', currentDay.toString())
-      } else {
-        // Still same day, just check for carry forward
-        checkAndCarryForwardPendingExpenses()
-      }
-    }, 60000) // Check every minute
-    
-    return () => {
-      clearInterval(dayCheckInterval)
-    }
   }, [])
   
   // Separate effect to ensure date is always today on mount
@@ -268,8 +243,19 @@ function ExpenseManagement() {
     }
   }) : []
   
-  // Calculate totals - with safety checks
-  const totalExpenses = Array.isArray(expensesArray) ? expensesArray.reduce((sum, exp) => sum + (exp?.amount || 0), 0) : 0
+  // Calculate monthly expenses - expenses for the selected date's month
+  const selectedYear = selectedDateObj.getFullYear()
+  const selectedMonth = selectedDateObj.getMonth() + 1 // getMonth() returns 0-11, so add 1
+  
+  const monthlyExpenses = Array.isArray(expensesArray) ? expensesArray.filter(exp => {
+    if (!exp || !exp.date) return false
+    try {
+      const [year, month] = exp.date.split('-').map(Number)
+      return year === selectedYear && month === selectedMonth
+    } catch (e) {
+      return false
+    }
+  }).reduce((sum, exp) => sum + (exp?.amount || 0), 0) : 0
   
   // Calculate today's expenses for summary card
   const today = getTodayDate()
@@ -349,9 +335,9 @@ function ExpenseManagement() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
-          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">Total Expenses</h3>
+          <h3 className="text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 sm:mb-2">Monthly Expenses</h3>
           <p className="text-lg sm:text-2xl lg:text-3xl font-bold text-red-600 dark:text-red-400">
-            KSH {(totalExpenses || 0).toFixed(2)}
+            KSH {(monthlyExpenses || 0).toFixed(2)}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 sm:p-4 lg:p-6">

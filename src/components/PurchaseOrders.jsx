@@ -14,18 +14,15 @@ function PurchaseOrders() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedSupplierFilter, setSelectedSupplierFilter] = useState('')
   const [formData, setFormData] = useState({
+    name: '',
     supplierId: '',
     supplierName: '',
     items: [],
     status: 'pending',
     orderDate: new Date().toISOString().split('T')[0],
-    expectedDate: '',
     notes: '',
   })
-  const [productSearchTerm, setProductSearchTerm] = useState('')
-  const [selectedProductId, setSelectedProductId] = useState('')
-  const [productQuantity, setProductQuantity] = useState(1)
-  const [productPrice, setProductPrice] = useState('')
+  const [newItemName, setNewItemName] = useState('')
   useEffect(() => {
     loadData()
   }, [])
@@ -86,23 +83,23 @@ function PurchaseOrders() {
     if (order) {
       setEditingOrder(order)
       setFormData({
+        name: order.name || '',
         supplierId: order.supplierId || '',
         supplierName: order.supplierName || '',
         items: Array.isArray(order.items) ? order.items : [],
         status: order.status || 'pending',
         orderDate: order.orderDate || new Date().toISOString().split('T')[0],
-        expectedDate: order.expectedDate || '',
         notes: order.notes || '',
       })
     } else {
       setEditingOrder(null)
       setFormData({
+        name: '',
         supplierId: '',
         supplierName: '',
         items: [],
         status: 'pending',
         orderDate: new Date().toISOString().split('T')[0],
-        expectedDate: '',
         notes: '',
       })
     }
@@ -112,122 +109,55 @@ function PurchaseOrders() {
   const handleCloseModal = () => {
     setShowModal(false)
     setEditingOrder(null)
-    setProductSearchTerm('')
-    setSelectedProductId('')
-    setProductQuantity(1)
-    setProductPrice('')
+    setNewItemName('')
   }
 
-  const handleSupplierChange = (supplierId) => {
-    const supplier = suppliers.find(s => s.id === supplierId)
+  const handleRemoveItem = (index) => {
     setFormData({
       ...formData,
-      supplierId: supplierId,
-      supplierName: supplier ? supplier.name : '',
+      items: formData.items.filter((item, i) => i !== index),
     })
   }
 
-  const handleRemoveItem = (productId) => {
+  const handleAddItem = () => {
+    if (!newItemName.trim()) {
+      showWarning('Please enter an item name')
+      return
+    }
+
     setFormData({
       ...formData,
-      items: formData.items.filter(item => item.productId !== productId),
+      items: [
+        ...formData.items,
+        {
+          productName: newItemName.trim(),
+        },
+      ],
     })
+
+    setNewItemName('')
   }
-
-  const handleUpdateItemQuantity = (productId, quantity) => {
-    if (quantity <= 0) {
-      handleRemoveItem(productId)
-      return
-    }
-    setFormData({
-      ...formData,
-      items: formData.items.map(item =>
-        item.productId === productId ? { ...item, quantity } : item
-      ),
-    })
-  }
-
-  const handleAddProduct = () => {
-    if (!selectedProductId) {
-      showWarning('Please select a product')
-      return
-    }
-    const product = products.find(p => p.id === selectedProductId)
-    if (!product) {
-      showWarning('Product not found')
-      return
-    }
-    if (productQuantity <= 0) {
-      showWarning('Quantity must be greater than 0')
-      return
-    }
-    const price = parseFloat(productPrice) || product.buyingPrice || product.price || 0
-    if (price <= 0) {
-      showWarning('Please enter a valid price')
-      return
-    }
-
-    // Check if product already exists in order
-    const existingItem = formData.items.find(item => item.productId === selectedProductId)
-    if (existingItem) {
-      // Update existing item
-      setFormData({
-        ...formData,
-        items: formData.items.map(item =>
-          item.productId === selectedProductId
-            ? { ...item, quantity: item.quantity + productQuantity, price }
-            : item
-        ),
-      })
-    } else {
-      // Add new item
-      setFormData({
-        ...formData,
-        items: [
-          ...formData.items,
-          {
-            productId: product.id,
-            productName: product.name,
-            quantity: productQuantity,
-            price: price,
-            buyingPrice: price,
-          },
-        ],
-      })
-    }
-
-    // Reset form
-    setSelectedProductId('')
-    setProductQuantity(1)
-    setProductPrice('')
-    setProductSearchTerm('')
-  }
-
-  const filteredProductsForSelection = Array.isArray(products) ? products.filter(product => {
-    if (!product || !product.name) return false
-    const searchLower = productSearchTerm.toLowerCase()
-    const nameMatch = product.name.toLowerCase().includes(searchLower)
-    const categoryMatch = product.category?.toLowerCase().includes(searchLower)
-    return nameMatch || categoryMatch
-  }).slice(0, 10) : []
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!formData.supplierId) {
-      showWarning('Please select a supplier')
-      return
-    }
     if (formData.items.length === 0) {
-      showWarning('Please add at least one product to the order')
+      showWarning('Please add at least one item to the order')
       return
     }
 
     try {
+      // Prepare order data without supplier requirement
+      const orderData = {
+        ...formData,
+        supplierId: formData.supplierId || '',
+        supplierName: formData.supplierName || '',
+      }
+      
       if (editingOrder) {
-        await ordersAPI.update(editingOrder.id, formData)
+        await ordersAPI.update(editingOrder.id, orderData)
         showSuccess('Order updated successfully!')
       } else {
-        await ordersAPI.create(formData)
+        await ordersAPI.create(orderData)
         showSuccess('Order created successfully!')
       }
       handleCloseModal()
@@ -320,12 +250,12 @@ function PurchaseOrders() {
     }))
 
     setFormData({
+      name: `Low Stock Order - ${supplier.name}`,
       supplierId: supplierId,
       supplierName: supplier.name,
       items: items,
       status: 'pending',
       orderDate: new Date().toISOString().split('T')[0],
-      expectedDate: '',
       notes: `Auto-generated order for low stock items from ${supplier.name}`,
     })
     setShowModal(true)
@@ -338,7 +268,11 @@ function PurchaseOrders() {
 
   const calculateTotal = (items) => {
     return items.reduce((sum, item) => {
-      return sum + ((item.price || item.buyingPrice || 0) * (item.quantity || 0))
+      // Only calculate total if price and quantity exist
+      if (item.price || item.buyingPrice) {
+        return sum + ((item.price || item.buyingPrice || 0) * (item.quantity || 0))
+      }
+      return sum
     }, 0)
   }
 
@@ -559,7 +493,7 @@ function PurchaseOrders() {
                   <div>
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-lg font-bold text-gray-800 dark:text-white">
-                        Order #{order.id.substring(0, 8)}
+                        {order.name || `Order #${order.id.substring(0, 8)}`}
                       </h3>
                       <span className={`px-2 py-1 text-xs font-semibold rounded ${
                         order.status === 'received' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
@@ -620,13 +554,17 @@ function PurchaseOrders() {
                         >
                           <div>
                             <span className="font-medium text-gray-800 dark:text-white">{item.productName || 'Unknown'}</span>
-                            <span className="text-sm text-gray-600 dark:text-gray-400 ml-2">
-                              Qty: {item.quantity || 0} × KSH {item.price?.toFixed(2) || item.buyingPrice?.toFixed(2) || '0.00'}
-                            </span>
+                            {(item.price || item.buyingPrice) && item.quantity && (
+                              <span className="text-sm text-gray-600 dark:text-gray-400 ml-2">
+                                Qty: {item.quantity || 0} × KSH {item.price?.toFixed(2) || item.buyingPrice?.toFixed(2) || '0.00'}
+                              </span>
+                            )}
                           </div>
-                          <span className="font-semibold text-gray-800 dark:text-white">
-                            KSH {((item.price || item.buyingPrice || 0) * (item.quantity || 0)).toFixed(2)}
-                          </span>
+                          {(item.price || item.buyingPrice) && item.quantity && (
+                            <span className="font-semibold text-gray-800 dark:text-white">
+                              KSH {((item.price || item.buyingPrice || 0) * (item.quantity || 0)).toFixed(2)}
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -637,9 +575,11 @@ function PurchaseOrders() {
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     {order.notes && <div>Notes: {order.notes}</div>}
                   </div>
-                  <div className="text-lg font-bold text-gray-800 dark:text-white">
-                    Total: KSH {calculateTotal(order.items || []).toFixed(2)}
-                  </div>
+                  {calculateTotal(order.items || []) > 0 && (
+                    <div className="text-lg font-bold text-gray-800 dark:text-white">
+                      Total: KSH {calculateTotal(order.items || []).toFixed(2)}
+                    </div>
+                  )}
                 </div>
               </div>
             ))
@@ -656,23 +596,20 @@ function PurchaseOrders() {
                 {editingOrder ? 'Edit Order' : 'New Purchase Order'}
               </h3>
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Order Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Enter order name..."
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Supplier *
-                    </label>
-                    <select
-                      required
-                      value={formData.supplierId}
-                      onChange={(e) => handleSupplierChange(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                    >
-                      <option value="">Select Supplier</option>
-                      {suppliers.map(supplier => (
-                        <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                      ))}
-                    </select>
-                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Status
@@ -700,103 +637,32 @@ function PurchaseOrders() {
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Expected Date
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.expectedDate}
-                      onChange={(e) => setFormData({ ...formData, expectedDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
                 </div>
 
-                {/* Add Products Section */}
+                {/* Add Items Section */}
                 <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Add Products to Order:</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Search Product
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Search by name or category..."
-                        value={productSearchTerm}
-                        onChange={(e) => setProductSearchTerm(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                      />
-                      {productSearchTerm && filteredProductsForSelection.length > 0 && (
-                        <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-lg max-h-40 overflow-y-auto bg-white dark:bg-gray-800">
-                          {filteredProductsForSelection.map(product => (
-                            <div
-                              key={product.id}
-                              onClick={() => {
-                                setSelectedProductId(product.id)
-                                setProductPrice(product.buyingPrice || product.price || '')
-                                setProductSearchTerm(product.name)
-                              }}
-                              className={`p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-700 last:border-b-0 ${
-                                selectedProductId === product.id ? 'bg-blue-100 dark:bg-blue-900' : ''
-                              }`}
-                            >
-                              <div className="font-medium text-gray-800 dark:text-white">{product.name}</div>
-                              <div className="text-xs text-gray-600 dark:text-gray-400">
-                                Stock: {product.stock || 0} | Current Buying Price: KSH {product.buyingPrice || product.price || '0.00'}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {selectedProductId && (
-                        <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                          <div className="text-sm font-medium text-gray-800 dark:text-white">
-                            Selected: {products.find(p => p.id === selectedProductId)?.name}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {selectedProductId && (
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Quantity *
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={productQuantity}
-                            onChange={(e) => setProductQuantity(parseInt(e.target.value) || 1)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Buying Price (KSH) *
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={productPrice}
-                            onChange={(e) => setProductPrice(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                            placeholder="0.00"
-                          />
-                        </div>
-                        <div className="flex items-end">
-                          <button
-                            type="button"
-                            onClick={handleAddProduct}
-                            className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
-                          >
-                            Add to Order
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                  <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Add Items to Order:</h4>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Enter item name..."
+                      value={newItemName}
+                      onChange={(e) => setNewItemName(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleAddItem()
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddItem}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
+                    >
+                      Add
+                    </button>
                   </div>
                 </div>
 
@@ -805,50 +671,23 @@ function PurchaseOrders() {
                   <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                     <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Order Items:</h4>
                     <div className="space-y-2">
-                      {formData.items.map((item, index) => {
-                        const product = products.find(p => p.id === item.productId)
-                        return (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded"
+                      {formData.items.map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded"
+                        >
+                          <span className="font-medium text-gray-800 dark:text-white">{item.productName || 'Unnamed Item'}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(index)}
+                            className="p-1 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900 rounded"
                           >
-                            <div className="flex-1">
-                              <span className="font-medium text-gray-800 dark:text-white">{item.productName}</span>
-                              <div className="text-sm text-gray-600 dark:text-gray-400">
-                                Buying Price: KSH {item.price?.toFixed(2) || item.buyingPrice?.toFixed(2) || '0.00'}
-                                {product && (
-                                  <span className="ml-2">(Current Stock: {product.stock || 0})</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="number"
-                                min="1"
-                                value={item.quantity}
-                                onChange={(e) => handleUpdateItemQuantity(item.productId, parseInt(e.target.value) || 1)}
-                                className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-800 dark:text-white text-sm"
-                              />
-                              <span className="w-24 text-right font-semibold text-gray-800 dark:text-white">
-                                KSH {((item.price || item.buyingPrice || 0) * item.quantity).toFixed(2)}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveItem(item.productId)}
-                                className="p-1 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900 rounded"
-                              >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                      <div className="pt-2 border-t border-gray-200 dark:border-gray-700 flex justify-between font-bold text-lg">
-                        <span>Total:</span>
-                        <span>KSH {calculateTotal(formData.items).toFixed(2)}</span>
-                      </div>
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}

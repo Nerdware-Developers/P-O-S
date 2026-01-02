@@ -7,9 +7,6 @@ function NotificationCenter({ onClose }) {
 
   useEffect(() => {
     checkLowStock()
-    // Check every 30 seconds
-    const interval = setInterval(checkLowStock, 30000)
-    return () => clearInterval(interval)
   }, [lowStockThreshold])
 
   const checkLowStock = async () => {

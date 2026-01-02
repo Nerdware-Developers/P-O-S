@@ -19,9 +19,6 @@ function SalesTargets() {
 
   useEffect(() => {
     loadTargets()
-    // Update current amounts every 30 seconds
-    const interval = setInterval(updateTargetProgress, 30000)
-    return () => clearInterval(interval)
   }, [])
 
   const loadTargets = async () => {

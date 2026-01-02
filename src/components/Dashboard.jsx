@@ -17,9 +17,6 @@ function Dashboard() {
 
   useEffect(() => {
     loadDashboardData()
-    // Refresh every 30 seconds
-    const interval = setInterval(loadDashboardData, 30000)
-    return () => clearInterval(interval)
   }, [])
 
   const loadDashboardData = async () => {

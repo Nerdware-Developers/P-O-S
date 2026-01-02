@@ -87,43 +87,6 @@ function SalesReports() {
     if (showClosingsHistory) {
       loadAllClosings()
     }
-    // Only refresh if viewing today's date (for real-time updates)
-    // Don't auto-refresh if viewing a past date - it won't change
-    let interval = null
-    const today = getTodayDate()
-    if (selectedDate === today) {
-      // Only set up auto-refresh when viewing today's date
-      interval = setInterval(() => {
-        const currentToday = getTodayDate()
-        // Double-check we're still viewing today before refreshing
-        if (selectedDate === currentToday) {
-          loadSales()
-        }
-      }, 60000) // Refresh every 60 seconds (1 minute) and only when viewing today
-    }
-    
-    // Refresh data when a new day starts (check every minute)
-    const dayCheckInterval = setInterval(() => {
-      const now = new Date()
-      const currentDay = now.getDate()
-      const storedDay = localStorage.getItem('lastSalesReportDay')
-      const todayStr = getTodayDate()
-      
-      if (storedDay && parseInt(storedDay) !== currentDay) {
-        // New day has started, refresh sales data and reset date to today
-        setSelectedDate(todayStr)
-        loadSales()
-        loadClosing()
-        localStorage.setItem('lastSalesReportDay', currentDay.toString())
-      } else if (!storedDay) {
-        localStorage.setItem('lastSalesReportDay', currentDay.toString())
-      }
-    }, 60000) // Check every minute
-    
-    return () => {
-      if (interval) clearInterval(interval)
-      clearInterval(dayCheckInterval)
-    }
   }, [filter, selectedUserId, selectedDate, showClosingsHistory, closingsFilter])
   
   // Reload closings when filter changes

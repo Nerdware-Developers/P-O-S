@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { productsAPI, suppliersAPI, priceHistoryAPI } from '../utils/api'
+import { productsAPI, suppliersAPI, priceHistoryAPI, salesAPI } from '../utils/api'
 import CategoryItem from './CategoryItem'
 import { useNotification } from './NotificationManager'
 
@@ -22,6 +22,8 @@ function InventoryManagement() {
   const [priceHistory, setPriceHistory] = useState([])
   const [loadingPriceHistory, setLoadingPriceHistory] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [sales, setSales] = useState([])
+  const [movementFilter, setMovementFilter] = useState('all') // all, fast, medium, slow
   const [formData, setFormData] = useState({
     name: '',
     price: '',
@@ -40,7 +42,26 @@ function InventoryManagement() {
   useEffect(() => {
     loadProducts()
     loadSuppliers()
+    loadSales()
   }, [])
+
+  const loadSales = async () => {
+    try {
+      const data = await salesAPI.getAll()
+      let salesList = []
+      if (data && data.success && Array.isArray(data.sales)) {
+        salesList = data.sales
+      } else if (Array.isArray(data.sales)) {
+        salesList = data.sales
+      } else if (Array.isArray(data)) {
+        salesList = data
+      }
+      setSales(Array.isArray(salesList) ? salesList : [])
+    } catch (err) {
+      console.error('Failed to load sales:', err)
+      setSales([])
+    }
+  }
 
   const loadSuppliers = async () => {
     try {
@@ -341,7 +362,49 @@ function InventoryManagement() {
     )
   }
 
-  // Filter products based on search, category, stock, and price, then sort
+  // Calculate product movement metrics (last 30 days)
+  const now = new Date()
+  const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000))
+  
+  const productMovement = {}
+  const salesArray = Array.isArray(sales) ? sales : []
+  
+  salesArray.forEach(sale => {
+    if (!sale.timestamp) return
+    const saleDate = new Date(sale.timestamp)
+    if (saleDate < thirtyDaysAgo) return // Skip sales older than 30 days
+    
+    if (Array.isArray(sale.items)) {
+      sale.items.forEach(item => {
+        if (item.productId) {
+          if (!productMovement[item.productId]) {
+            productMovement[item.productId] = {
+              quantitySold: 0,
+              saleCount: 0
+            }
+          }
+          productMovement[item.productId].quantitySold += (item.quantity || 0)
+          productMovement[item.productId].saleCount += 1
+        }
+      })
+    }
+  })
+  
+  // Calculate percentiles for movement classification
+  const allQuantities = Object.values(productMovement).map(m => m.quantitySold).sort((a, b) => a - b)
+  const p33 = allQuantities.length > 0 ? allQuantities[Math.floor(allQuantities.length * 0.33)] : 0
+  const p67 = allQuantities.length > 0 ? allQuantities[Math.floor(allQuantities.length * 0.67)] : 0
+  
+  // Classify product movement
+  const getProductMovement = (productId) => {
+    const movement = productMovement[productId]
+    if (!movement || movement.quantitySold === 0) return 'slow'
+    if (movement.quantitySold >= p67) return 'fast'
+    if (movement.quantitySold >= p33) return 'medium'
+    return 'slow'
+  }
+
+  // Filter products based on search, category, stock, price, and movement, then sort
   const filteredProducts = Array.isArray(productsArray) ? productsArray.filter(product => {
     const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -360,7 +423,14 @@ function InventoryManagement() {
     const matchesMinPrice = !priceRange.min || price >= parseFloat(priceRange.min)
     const matchesMaxPrice = !priceRange.max || price <= parseFloat(priceRange.max)
     
-    return matchesSearch && matchesCategory && matchesStock && matchesMinPrice && matchesMaxPrice
+    // Movement filter
+    let matchesMovement = true
+    if (movementFilter !== 'all') {
+      const movement = getProductMovement(product.id)
+      matchesMovement = movement === movementFilter
+    }
+    
+    return matchesSearch && matchesCategory && matchesStock && matchesMinPrice && matchesMaxPrice && matchesMovement
   }).sort((a, b) => {
     // Sort by selected option
     switch (sortBy) {
@@ -524,6 +594,18 @@ function InventoryManagement() {
             </div>
             <div className="sm:w-48 sm:flex-1">
               <select
+                value={movementFilter}
+                onChange={(e) => setMovementFilter(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="all">All Movement</option>
+                <option value="fast">Fast Moving</option>
+                <option value="medium">Medium Moving</option>
+                <option value="slow">Slow Moving</option>
+              </select>
+            </div>
+            <div className="sm:w-48 sm:flex-1">
+              <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
@@ -594,6 +676,7 @@ function InventoryManagement() {
                 onClick={() => {
                   setPriceRange({ min: '', max: '' })
                   setStockFilter('all')
+                  setMovementFilter('all')
                 }}
                 className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
               >
@@ -623,7 +706,25 @@ function InventoryManagement() {
                   }`}
                 >
                   <div className="flex justify-between items-start mb-3">
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white flex-1 pr-2">{product.name}</h3>
+                    <div className="flex-1 pr-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-semibold text-gray-900 dark:text-white">{product.name}</h3>
+                        {(() => {
+                          const movement = getProductMovement(product.id)
+                          const movementData = productMovement[product.id]
+                          if (!movementData || movementData.quantitySold === 0) {
+                            return <span className="text-xs px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">Slow</span>
+                          }
+                          if (movement === 'fast') {
+                            return <span className="text-xs px-2 py-0.5 rounded bg-green-200 dark:bg-green-900 text-green-800 dark:text-green-200">Fast</span>
+                          }
+                          if (movement === 'medium') {
+                            return <span className="text-xs px-2 py-0.5 rounded bg-yellow-200 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">Medium</span>
+                          }
+                          return <span className="text-xs px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">Slow</span>
+                        })()}
+                      </div>
+                    </div>
                     <div className="flex gap-1 flex-shrink-0">
                       <button
                         onClick={() => handleOpenModal(product)}
@@ -710,6 +811,9 @@ function InventoryManagement() {
                     <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Category
                     </th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      Movement
+                    </th>
                     <th className="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                       Actions
                     </th>
@@ -718,7 +822,7 @@ function InventoryManagement() {
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredProducts.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                      <td colSpan="8" className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                         {loading ? 'Loading products...' : 'No products found matching your search.'}
                       </td>
                     </tr>
@@ -761,6 +865,22 @@ function InventoryManagement() {
                             </div>
                           )}
                         </div>
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm">
+                        {(() => {
+                          const movement = getProductMovement(product.id)
+                          const movementData = productMovement[product.id]
+                          if (!movementData || movementData.quantitySold === 0) {
+                            return <span className="px-2 py-1 rounded text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">Slow</span>
+                          }
+                          if (movement === 'fast') {
+                            return <span className="px-2 py-1 rounded text-xs bg-green-200 dark:bg-green-900 text-green-800 dark:text-green-200">Fast ({movementData.quantitySold} sold)</span>
+                          }
+                          if (movement === 'medium') {
+                            return <span className="px-2 py-1 rounded text-xs bg-yellow-200 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">Medium ({movementData.quantitySold} sold)</span>
+                          }
+                          return <span className="px-2 py-1 rounded text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">Slow ({movementData.quantitySold} sold)</span>
+                        })()}
                       </td>
                       <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
